@@ -12,6 +12,10 @@
     <string name="pick_folder">Pick folder</string>
     <string name="folder_default">App-private storage</string>
     <string name="folder_revoked">Folder access lost — notes use app-private storage. Pick the folder again in Settings.</string>
+    <string name="folder_unavailable">Selected folder is unavailable — saved to app-private storage instead.</string>
+    <string name="folder_permission_not_persisted">Folder permission was not persisted — notes use app-private storage until you pick the folder again.</string>
+    <string name="note_create_failed">Could not create the note in the selected folder.</string>
+    <string name="note_io_failed">Could not save to the selected folder.</string>
     <string name="note_deleted">Note deleted</string>
     <string name="delete_failed">Could not delete note</string>
     <string name="undo">Undo</string>

@@ -37,10 +37,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.patryksliwinski.quicknotes.R
+import com.patryksliwinski.quicknotes.data.NoteError
 import com.patryksliwinski.quicknotes.data.NoteMeta
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -53,14 +55,31 @@ fun NotesListScreen(
     onOpenNote: (NoteMeta) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
+    val context = LocalContext.current
     val notes by viewModel.notes.collectAsState()
     val query by viewModel.query.collectAsState()
     val folderRevoked by viewModel.folderRevoked.collectAsState()
     val storageName by viewModel.storageName.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     val deletedMsg = stringResource(R.string.note_deleted)
     val deleteFailedMsg = stringResource(R.string.delete_failed)
     val undoLabel = stringResource(R.string.undo)
+
+    LaunchedEffect(errorMessage) {
+        val error = errorMessage ?: return@LaunchedEffect
+        val message = when (error) {
+            NoteError.CreateFailed -> context.getString(R.string.note_create_failed)
+            NoteError.FolderUnavailable -> context.getString(R.string.folder_unavailable)
+            NoteError.StorageError -> context.getString(R.string.note_io_failed)
+            NoteError.FolderPermissionLost -> context.getString(R.string.folder_permission_not_persisted)
+        }
+        scope.launch {
+            snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Long)
+        }
+        viewModel.clearError()
+    }
 
     LaunchedEffect(Unit) {
         viewModel.refresh()

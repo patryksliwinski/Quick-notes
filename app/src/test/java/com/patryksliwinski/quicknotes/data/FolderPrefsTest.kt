@@ -49,9 +49,16 @@ class FolderPrefsTest {
     }
 
     @Test
-    fun `takePermission swallows security exception for invalid uri`() {
+    fun `takePermission returns false when security exception is thrown for invalid uri`() {
         val uri = Uri.parse("content://com.android.externalstorage.documents/tree/invalid")
-        FolderPrefs.takePermission(context, uri)
+        assertFalse(FolderPrefs.takePermission(context, uri))
+    }
+
+    @Test
+    fun `takePermission returns true when permission is persisted`() {
+        val uri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3ADocuments")
+        assertTrue(FolderPrefs.takePermission(context, uri))
+        assertTrue(FolderPrefs.hasPersistedPermission(context, uri))
     }
 
     @Test

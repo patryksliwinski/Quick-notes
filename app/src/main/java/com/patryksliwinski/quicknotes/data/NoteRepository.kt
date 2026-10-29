@@ -9,7 +9,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 
-class NoteRepository(private val context: Context) {
+enum class NoteError {
+    CreateFailed,
+    FolderUnavailable,
+    StorageError,
+    FolderPermissionLost,
+}
+
+class NoteRepository(
+    private val context: Context,
+    private val storeProvider: () -> Pair<NoteStore, Boolean> = { resolveNoteStore(context) },
+) {
 
     private var store: NoteStore = InternalNoteStore(context.filesDir.resolve("notes"))
     private val _notes = MutableStateFlow<List<NoteMeta>>(emptyList())
@@ -18,45 +28,78 @@ class NoteRepository(private val context: Context) {
     val folderRevoked: StateFlow<Boolean> = _folderRevoked
     private val _storageName = MutableStateFlow("")
     val storageName: StateFlow<String> = _storageName
+    private val _errorMessage = MutableStateFlow<NoteError?>(null)
+    val errorMessage: StateFlow<NoteError?> = _errorMessage
+
+    fun clearError() {
+        _errorMessage.value = null
+    }
+
+    fun reportError(error: NoteError) {
+        _errorMessage.value = error
+    }
 
     suspend fun refresh() = withContext(Dispatchers.IO) {
-        val (resolved, revoked) = resolveNoteStore(context)
+        val (resolved, revoked) = storeProvider()
         store = resolved
         _folderRevoked.value = revoked
         _storageName.value = resolved.displayName()
-        _notes.value = resolved.listNotes()
+        _notes.value = try {
+            resolved.listNotes()
+        } catch (e: Exception) {
+            recover(resolved) { it.listNotes() } ?: emptyList()
+        }
     }
 
-    suspend fun createNote(): NoteMeta = withContext(Dispatchers.IO) {
-        val note = store.createNote()
+    suspend fun createNote(): NoteMeta? = withContext(Dispatchers.IO) {
+        val note = try {
+            store.createNote()
+        } catch (e: Exception) {
+            _errorMessage.value = NoteError.CreateFailed
+            recover(store) { it.createNote() }
+        }
+        if (note == null) return@withContext null
         _notes.value = listOf(note) + _notes.value
         requestWidgetRefresh()
         note
     }
 
     suspend fun restoreNote(meta: NoteMeta, content: String) = withContext(Dispatchers.IO) {
-        val restored = store.restoreNote(meta.name, content)
-        _notes.value = listOf(restored) + _notes.value.filter { it.uri != meta.uri }
-        requestWidgetRefresh()
+        try {
+            val restored = store.restoreNote(meta.name, content)
+            _notes.value = listOf(restored) + _notes.value.filter { it.uri != meta.uri }
+            requestWidgetRefresh()
+        } catch (e: Exception) {
+            _errorMessage.value = NoteError.StorageError
+        }
     }
 
     suspend fun readNote(uri: String): String = withContext(Dispatchers.IO) {
-        store.readNote(uri)
+        try {
+            store.readNote(uri)
+        } catch (e: Exception) {
+            _errorMessage.value = NoteError.StorageError
+            ""
+        }
     }
 
     suspend fun writeNote(uri: String, content: String) = withContext(Dispatchers.IO) {
-        store.writeNote(uri, content)
-        _notes.value = _notes.value.map { meta ->
-            if (meta.uri == uri) {
-                val head = content.take(4096)
-                meta.copy(
-                    title = deriveTitle(meta.name, head),
-                    snippet = deriveSnippet(meta.name, head),
-                    lastModified = System.currentTimeMillis(),
-                )
-            } else meta
-        }.sortedByDescending { it.lastModified }
-        requestWidgetRefresh()
+        try {
+            store.writeNote(uri, content)
+            _notes.value = _notes.value.map { meta ->
+                if (meta.uri == uri) {
+                    val head = content.take(4096)
+                    meta.copy(
+                        title = deriveTitle(meta.name, head),
+                        snippet = deriveSnippet(meta.name, head),
+                        lastModified = System.currentTimeMillis(),
+                    )
+                } else meta
+            }.sortedByDescending { it.lastModified }
+            requestWidgetRefresh()
+        } catch (e: Exception) {
+            _errorMessage.value = NoteError.StorageError
+        }
     }
 
     suspend fun deleteNote(meta: NoteMeta): Boolean = withContext(Dispatchers.IO) {
@@ -70,6 +113,7 @@ class NoteRepository(private val context: Context) {
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            _errorMessage.value = NoteError.StorageError
             false
         }
     }
@@ -85,6 +129,22 @@ class NoteRepository(private val context: Context) {
             setPackage(context.packageName)
         }
         context.sendBroadcast(intent)
+    }
+
+    private suspend fun <T> recover(failed: NoteStore, retry: suspend (NoteStore) -> T): T? {
+        if (failed is InternalNoteStore) {
+            return null
+        }
+        val internal = InternalNoteStore(context.filesDir.resolve("notes"))
+        store = internal
+        _folderRevoked.value = true
+        _storageName.value = internal.displayName()
+        _errorMessage.value = NoteError.FolderUnavailable
+        return try {
+            retry(internal)
+        } catch (e: Exception) {
+            null
+        }
     }
 }
 

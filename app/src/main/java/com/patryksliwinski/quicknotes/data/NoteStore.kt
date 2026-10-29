@@ -258,13 +258,13 @@ object FolderPrefs {
         return context.contentResolver.persistedUriPermissions.any { it.uri == uri && it.isWritePermission }
     }
 
-    fun takePermission(context: Context, uri: Uri) {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+    fun takePermission(context: Context, uri: Uri): Boolean {
         val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-        try {
+        return try {
             context.contentResolver.takePersistableUriPermission(uri, flags)
+            true
         } catch (e: SecurityException) {
-            // Permission could not be persisted; the folder still works for this session.
+            false
         }
     }
 }

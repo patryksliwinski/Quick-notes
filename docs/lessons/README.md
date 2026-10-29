@@ -6,6 +6,7 @@ Self-improving log for this repo.
 
 | Date | Lesson | File |
 |---|---|---|
+| `2026-10-29` | [Releasing a new version requires a version-bump PR on main before tagging](2026-10-29-release-version-bump-needs-pr.md) |
 | `2026-10-29` | [SwipeToDismissBox background is always composed — gate it on `dismissDirection != Settled` or it shows through transparent rows](2026-10-29-swipe-background-must-be-state-gated.md) |
 | `2026-10-29` | [Widgets share a base provider; adding one is a 4-step checklist](2026-10-29-shared-widget-base-4-step-pattern.md) |
 | `2026-10-29` | [Release notes always generated from commits since the previous tag and attached via `--notes-file`](2026-10-29-release-notes-always-generated.md) |

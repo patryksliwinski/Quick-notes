@@ -45,15 +45,27 @@ class NoteRepositoryTest {
     }
 
     @Test
-    fun `writeNote updates title snippet and ordering`() = runTest {
-        val (a, b) = seed("", "")
+    fun `writeNote updates title and snippet of the edited note`() = runTest {
+        val (a, b) = seed("# A\na", "# B\nb")
         repository.writeNote(a.uri, "# Alpha\nbody a")
         val notes = repository.notes.first()
         val updated = notes.first { it.uri == a.uri }
         assertEquals("Alpha", updated.title)
         assertEquals("body a", updated.snippet)
         assertEquals(2, notes.size)
-        assertTrue(notes.any { it.uri == b.uri })
+        val untouched = notes.first { it.uri == b.uri }
+        assertEquals("B", untouched.title)
+        assertEquals("b", untouched.snippet)
+    }
+
+    @Test
+    fun `refresh sorts notes newest first as the user sees in the list`() = runTest {
+        val (a, b) = seed("# A\na", "# B\nb")
+        val aFile = java.io.File(java.net.URI(a.uri))
+        aFile.setLastModified(aFile.lastModified() - 60_000)
+        repository.refresh()
+        val notes = repository.notes.first()
+        assertEquals(listOf(b.uri, a.uri), notes.map { it.uri })
     }
 
     @Test
@@ -70,7 +82,7 @@ class NoteRepositoryTest {
         repository.undoDelete()
         val restored = repository.notes.first()
         assertEquals(1, restored.size)
-        assertEquals(meta.name.removeSuffix(".md"), restored[0].title)
+        assertEquals(meta.uri, restored[0].uri)
         assertEquals("# Keep\nrestore me", repository.readNote(restored[0].uri))
     }
 

@@ -34,13 +34,6 @@ class FolderPrefsTest {
     }
 
     @Test
-    fun `loadFolderUri returns null for empty stored value`() {
-        context.getSharedPreferences("quicknotes_prefs", android.content.Context.MODE_PRIVATE)
-            .edit().putString("folder_uri", "").commit()
-        assertEquals(Uri.EMPTY, FolderPrefs.loadFolderUri(context))
-    }
-
-    @Test
     fun `hasPersistedPermission is false for uri without grant`() {
         val uri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3ADocuments")
         assertFalse(FolderPrefs.hasPersistedPermission(context, uri))

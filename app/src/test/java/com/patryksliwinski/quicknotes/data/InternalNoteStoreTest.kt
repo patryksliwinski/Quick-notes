@@ -81,8 +81,19 @@ class InternalNoteStoreTest {
     }
 
     @Test
-    fun `listNotes handles file that disappears mid-scan`() = runTest {
+    fun `listNotes picks up file added externally by sync`() = runTest {
+        assertTrue(store.listNotes().isEmpty())
+        java.io.File(temp.root, "notes/20250101-090000-sync.md").writeText("# Synced\nfrom git")
+        val notes = store.listNotes()
+        assertEquals(1, notes.size)
+        assertEquals("Synced", notes[0].title)
+        assertEquals("from git", notes[0].snippet)
+    }
+
+    @Test
+    fun `listNotes drops file deleted externally by sync`() = runTest {
         val meta = store.createNote()
+        assertEquals(1, store.listNotes().size)
         java.io.File(java.net.URI(meta.uri)).delete()
         assertEquals(emptyList<NoteMeta>(), store.listNotes())
     }

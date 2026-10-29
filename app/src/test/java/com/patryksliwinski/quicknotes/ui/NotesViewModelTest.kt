@@ -13,6 +13,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -92,8 +93,22 @@ class NotesViewModelTest {
         assertEquals("Alpha", viewModel.notes.value[0].title)
         viewModel.onQueryChange("unique")
         waitFor { viewModel.notes.value.size == 1 && viewModel.notes.value[0].title == "Beta" }
+        viewModel.onQueryChange("no-such-note")
+        waitFor { viewModel.notes.value.isEmpty() }
         viewModel.onQueryChange("")
         waitFor { viewModel.notes.value.size == 2 }
+    }
+
+    @Test
+    fun `quick path always creates a new note, never reopens existing`() {
+        viewModel.refresh()
+        waitFor { viewModel.storageName.value.isNotEmpty() }
+        val first = createWithContent("# First", "one")
+        var second: NoteMeta? = null
+        viewModel.createNote { second = it }
+        waitFor { second != null }
+        assertTrue(second!!.uri != first.uri)
+        assertEquals(second!!.uri, viewModel.notes.value.first().uri)
     }
 
     @Test
@@ -116,6 +131,11 @@ class NotesViewModelTest {
         viewModel.undoDelete()
         waitFor { viewModel.notes.value.size == 1 }
         assertEquals(meta.uri, viewModel.notes.value.first().uri)
+        runBlocking {
+            val repo = NoteRepository(app)
+            repo.refresh()
+            assertEquals("# Temp\nbye", repo.readNote(meta.uri))
+        }
     }
 
     @Test

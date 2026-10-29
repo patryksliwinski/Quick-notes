@@ -24,3 +24,7 @@ receiver/  Home-screen app widget -> ACTION_NEW_NOTE
 tile/      Quick-settings tile -> ACTION_NEW_NOTE
 data/      NoteStore (internal dir or SAF tree), NoteRepository, folder prefs
 ```
+
+## Notes on usage
+- Add the "New note" widget to your home screen or enable the quick-settings tile for one-tap note creation.
+- To sync: pick a folder in Settings, then point Syncthing at the same folder on your other devices.

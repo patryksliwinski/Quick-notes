@@ -43,7 +43,7 @@ Requires JDK 17, Android SDK with `platforms;android-35` and `build-tools;35.0.0
 ## Workflow (summary — full version in docs/WORKFLOW.md)
 
 - Work happens on short-lived branches `vibe/<slug>` or `feat/<slug>`; PRs target `main`.
-- Every PR goes through the automated review pipeline (`.github/workflows/pr-review.yml`) plus a human review checklist (`.github/PULL_REQUEST_TEMPLATE.md`).
+- Every PR goes through the automated review pipeline (`.github/workflows/pr-review.yml`) plus the review checklist in `.github/PULL_REQUEST_TEMPLATE.md`. Reviews are done by the agent itself: after implementing a ticket, the agent reviews its own diff, pushes the review as comments on the PR, then addresses its own comments in follow-up commits. No human review step.
 - After each merged task, add a lesson file under `docs/lessons/` — the repo's self-improving log. **Do not skip this step.**
 
 ## Do not

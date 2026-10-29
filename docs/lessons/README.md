@@ -8,7 +8,8 @@ Self-improving log for this repo.
 |---|---|---|
 | `2026-10-29` | [CI lint caught minSdk bugs: `readNBytes` needs API 33; tile API deprecated](2026-10-29-lint-newapi-and-deprecated-tile-api.md) |
 | `2026-10-29` | [`actions/setup-android` moved to `android-actions/setup-android@v4`](2026-10-29-ci-setup-android-action-moved.md) |
-| `2026-10-29` | [PR review is layered: fast static gate + AI agent review + human](2026-10-29-ai-agent-pr-review.md) |
+| `2026-10-29` | [No human review: the agent self-reviews, comments, then fixes](2026-10-29-agent-self-review-no-human-gate.md) |
+| `2026-10-29` | [PR review is layered: fast static gate + AI agent review (no human gate)](2026-10-29-ai-agent-pr-review.md) |
 | `2026-10-29` | [Lessons live in a directory, not one big file](2026-10-29-lessons-as-directory.md) |
 | `2026-10-29` | [Sandbox GitHub credentials are read-only; use the gh credential helper for git](2026-10-29-sandbox-github-push-credentials.md) |
 | `2026-10-29` | [Kotlin 2.0 requires the Compose Compiler Gradle plugin, not composeOptions](2026-10-29-kotlin2-compose-compiler-plugin.md) |

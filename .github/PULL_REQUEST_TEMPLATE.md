@@ -29,5 +29,10 @@
 - [ ] Added a file under `docs/lessons/` (+ index row) describing what this PR taught us (required if any non-trivial decision was made)
 - [ ] Updated `AGENTS.md` / `docs/WORKFLOW.md` / `docs/ARCHITECTURE.md` if a rule changed (required if behavior contract changed)
 
+## Agent self-review
+- [ ] Agent reviewed its own diff against `AGENTS.md` and the checklist above
+- [ ] Review pushed as comments on this PR
+- [ ] All self-review comments addressed in follow-up commits (no human review step — the agent owns the review loop)
+
 ## Screenshots / demo
 - Attach if UI changed

@@ -81,7 +81,7 @@ jobs:
               echo "- ℹ️ No doc/AGENTS.md changes (fine if none were needed)."
             fi
             echo ""
-            echo "Human review still required: quick-path purity, UX, and the PR-template checklist."
+            echo "The implementing agent self-reviews next: review your own diff against the PR-template checklist, push the review as comments on this PR, then fix those comments in follow-up commits. No human review step."
           } > review-comment.md
           cat review-comment.md
 

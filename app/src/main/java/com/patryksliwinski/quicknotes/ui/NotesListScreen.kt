@@ -165,16 +165,18 @@ fun NotesListScreen(
                             enableDismissFromStartToEnd = true,
                             enableDismissFromEndToStart = true,
                             backgroundContent = {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = 20.dp),
-                                    contentAlignment = Alignment.CenterEnd,
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.note_deleted),
-                                        color = MaterialTheme.colorScheme.error,
-                                    )
+                                if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = 20.dp),
+                                        contentAlignment = Alignment.CenterEnd,
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.note_deleted),
+                                            color = MaterialTheme.colorScheme.error,
+                                        )
+                                    }
                                 }
                             },
                         ) {

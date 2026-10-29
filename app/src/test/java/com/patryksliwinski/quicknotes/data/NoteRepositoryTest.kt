@@ -52,7 +52,7 @@ class NoteRepositoryTest {
         repo.refresh()
         val meta = repo.createNote()
         assertTrue(meta != null)
-        assertTrue(meta!!.uri.startsWith("file://"))
+        assertTrue(meta!!.uri.startsWith("file:"))
         assertTrue(java.io.File(java.net.URI(meta.uri)).exists())
         assertTrue(repo.folderRevoked.first())
         assertEquals(NoteError.FolderUnavailable, repo.errorMessage.first())

@@ -187,13 +187,13 @@ class NotesViewModelTest {
         val meta = createWithContent("# Ghost", "gone")
         viewModel.refresh()
         waitFor { viewModel.notes.value.size == 1 }
-        java.io.File(java.net.URI(meta.uri)).delete()
+        val ghost = meta.copy(uri = "file:///nonexistent/ghost.md")
         val events = mutableListOf<NoteMeta?>()
         val job = collectorScope.launch { viewModel.deleteEvents.collect { events.add(it) } }
-        viewModel.deleteNote(meta)
+        viewModel.deleteNote(ghost)
         waitFor { events.isNotEmpty() }
         assertNull(events.first())
-        waitFor { viewModel.notes.value.size == 1 }
+        waitFor { viewModel.notes.value.size == 1 && viewModel.notes.value.first().uri == meta.uri }
         job.cancel()
     }
 

@@ -27,16 +27,22 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (intent?.action == ACTION_OPEN_NOTE) {
+            intent.getStringExtra(EXTRA_NOTE_URI)?.let { pendingOpenNote = noteMetaFromUri(it) }
+        }
         setContent {
             MaterialTheme {
                 AppRoot(
                     notesViewModel,
-                    handleNewNote = intent?.action == ACTION_NEW_NOTE || pendingNewNote != null,
-                    pendingNote = pendingNewNote,
+                    handleNewNote = intent?.action == ACTION_NEW_NOTE ||
+                        intent?.action == ACTION_OPEN_NOTE ||
+                        pendingNewNote != null || pendingOpenNote != null,
+                    pendingNote = pendingOpenNote ?: pendingNewNote,
                 ) { handled ->
                     if (handled) {
                         intent = intent?.setAction(null)
                         pendingNewNote = null
+                        pendingOpenNote = null
                     }
                 }
             }
@@ -46,17 +52,37 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (intent.action == ACTION_NEW_NOTE) {
-            notesViewModel.createNote { note ->
-                // Posted to the main looper so Compose state is updated on the UI thread.
+        when (intent.action) {
+            ACTION_NEW_NOTE -> {
+                notesViewModel.createNote { note ->
+                    // Posted to the main looper so Compose state is updated on the UI thread.
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        pendingNewNote = note
+                    }
+                }
+            }
+            ACTION_OPEN_NOTE -> {
+                val uri = intent.getStringExtra(EXTRA_NOTE_URI) ?: return
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    pendingNewNote = note
+                    pendingOpenNote = noteMetaFromUri(uri)
                 }
             }
         }
     }
 
+    private fun noteMetaFromUri(uri: String): NoteMeta {
+        val name = uri.substringAfterLast('/')
+        return NoteMeta(
+            uri = uri,
+            name = name,
+            lastModified = 0L,
+            title = name.removeSuffix(".md"),
+            snippet = "",
+        )
+    }
+
     private var pendingNewNote by mutableStateOf<NoteMeta?>(null)
+    private var pendingOpenNote by mutableStateOf<NoteMeta?>(null)
 
     override fun onResume() {
         super.onResume()
@@ -65,6 +91,8 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val ACTION_NEW_NOTE = "com.patryksliwinski.quicknotes.NEW_NOTE"
+        const val ACTION_OPEN_NOTE = "com.patryksliwinski.quicknotes.OPEN_NOTE"
+        const val EXTRA_NOTE_URI = "com.patryksliwinski.quicknotes.extra.NOTE_URI"
     }
 }
 

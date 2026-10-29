@@ -8,6 +8,11 @@
     <dimen name="widget_icon_size">40dp</dimen>
     <dimen name="widget_label_margin_top">4dp</dimen>
     <dimen name="widget_label_text_size">12sp</dimen>
+    <dimen name="widget_header_text_size">14sp</dimen>
+    <dimen name="widget_row_title_text_size">13sp</dimen>
+    <dimen name="widget_row_subtitle_text_size">11sp</dimen>
+    <dimen name="widget_row_padding_vertical">4dp</dimen>
+    <dimen name="widget_row_subtitle_margin_top">1dp</dimen>
 
     <style name="WidgetLabelText">
         <item name="android:layout_width">wrap_content</item>
@@ -15,5 +20,43 @@
         <item name="android:layout_marginTop">@dimen/widget_label_margin_top</item>
         <item name="android:textColor">@color/widget_text_color</item>
         <item name="android:textSize">@dimen/widget_label_text_size</item>
+    </style>
+
+    <style name="WidgetHeaderText">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/widget_text_color</item>
+        <item name="android:textSize">@dimen/widget_header_text_size</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+
+    <style name="WidgetRow">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:paddingTop">@dimen/widget_row_padding_vertical</item>
+        <item name="android:paddingBottom">@dimen/widget_row_padding_vertical</item>
+    </style>
+
+    <style name="WidgetRowTitle">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/widget_text_color</item>
+        <item name="android:textSize">@dimen/widget_row_title_text_size</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+
+    <style name="WidgetRowSubtitle">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">@dimen/widget_row_subtitle_margin_top</item>
+        <item name="android:textColor">@color/widget_text_color</item>
+        <item name="android:textSize">@dimen/widget_row_subtitle_text_size</item>
+        <item name="android:alpha">0.8</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
     </style>
 </resources>

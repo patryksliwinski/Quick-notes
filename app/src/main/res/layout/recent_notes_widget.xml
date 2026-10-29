@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:orientation="vertical"
+    android:padding="@dimen/widget_padding">
+
+    <TextView
+        android:id="@+id/widget_header"
+        style="@style/WidgetHeaderText"
+        android:text="@string/widget_recent_notes" />
+
+    <LinearLayout
+        android:id="@+id/widget_row_1"
+        style="@style/WidgetRow">
+
+        <TextView
+            android:id="@+id/widget_row_1_title"
+            style="@style/WidgetRowTitle" />
+
+        <TextView
+            android:id="@+id/widget_row_1_subtitle"
+            style="@style/WidgetRowSubtitle" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_row_2"
+        style="@style/WidgetRow">
+
+        <TextView
+            android:id="@+id/widget_row_2_title"
+            style="@style/WidgetRowTitle" />
+
+        <TextView
+            android:id="@+id/widget_row_2_subtitle"
+            style="@style/WidgetRowSubtitle" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_row_3"
+        style="@style/WidgetRow">
+
+        <TextView
+            android:id="@+id/widget_row_3_title"
+            style="@style/WidgetRowTitle" />
+
+        <TextView
+            android:id="@+id/widget_row_3_subtitle"
+            style="@style/WidgetRowSubtitle" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_row_4"
+        style="@style/WidgetRow">
+
+        <TextView
+            android:id="@+id/widget_row_4_title"
+            style="@style/WidgetRowTitle" />
+
+        <TextView
+            android:id="@+id/widget_row_4_subtitle"
+            style="@style/WidgetRowSubtitle" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_row_5"
+        style="@style/WidgetRow">
+
+        <TextView
+            android:id="@+id/widget_row_5_title"
+            style="@style/WidgetRowTitle" />
+
+        <TextView
+            android:id="@+id/widget_row_5_subtitle"
+            style="@style/WidgetRowSubtitle" />
+    </LinearLayout>
+</LinearLayout>

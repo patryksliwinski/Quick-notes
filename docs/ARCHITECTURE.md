@@ -14,7 +14,10 @@ app/src/main/java/com/patryksliwinski/quicknotes/
 │   ├── EditorScreen.kt     # monospace TextField, debounced autosave
 │   ├── EditorViewModel.kt  # 400 ms debounce, saveNow() on dispose/back
 │   └── SettingsScreen.kt   # SAF folder picker (ACTION_OPEN_DOCUMENT_TREE + persisted URI permission)
-├── receiver/NewNoteWidgetProvider.kt  # home-screen widget -> ACTION_NEW_NOTE
+├── receiver/
+│   ├── BaseWidgetProvider.kt   # abstract AppWidgetProvider: builds RemoteViews, applies shared widget_background, attaches PendingIntents, pushes updates
+│   ├── NewNoteWidgetProvider.kt # home-screen widget -> ACTION_NEW_NOTE (extends the base)
+│   └── WidgetNoteLoader.kt     # off-main-thread helper: active NoteStore (goAsync + Dispatchers.IO) -> recent List<NoteMeta> for RemoteViews
 └── tile/QuickNoteTileService.kt       # QS tile -> ACTION_NEW_NOTE
 ```
 
@@ -40,3 +43,16 @@ app/src/main/java/com/patryksliwinski/quicknotes/
 - Tap widget/tile/`+` → editable note well under 1 s (no heavy init on the quick path; DB-free).
 - List scroll, search, delete feel instant at ≤ a few hundred notes.
 - No I/O on the main thread, ever (enforced by convention + debug `StrictMode`).
+
+## Home-screen widgets
+
+All widgets extend `receiver/BaseWidgetProvider.kt`, which handles the `RemoteViews` plumbing: building the views for the widget's layout, applying the shared `@drawable/widget_background`, attaching `PendingIntent`s to view ids (`setActivityClick`), and pushing updates to `AppWidgetManager`. Shared widget text sizes/colors/paddings live in `res/values/widget_styles.xml`; all user-visible strings in `res/values/strings.xml`. Data-driven widgets load notes via `receiver/WidgetNoteLoader.kt` (`goAsync` + `Dispatchers.IO`, never disk on the main thread).
+
+### Adding a new widget — 4 steps
+
+1. **Provider**: create `receiver/<Name>WidgetProvider.kt` extending `BaseWidgetProvider` — implement `widgetLayout()` and override `attachClickIntents()` to map view ids to intents (e.g. `MainActivity.ACTION_NEW_NOTE`).
+2. **Layout**: create `res/layout/<name>_widget.xml` with root id `@+id/widget_root`, `android:background="@drawable/widget_background"`, and shared dimens/styles from `widget_styles.xml`.
+3. **Info XML**: create `res/xml/<name>_widget_info.xml` (`<appwidget-provider>` pointing at the layout).
+4. **Manifest**: add a `<receiver android:exported="true">` with the `APPWIDGET_UPDATE` intent-filter and `android.appwidget.provider` meta-data pointing at the info XML.
+
+Golden rule #1 applies to quick-add style widgets: the click intent must be `ACTION_NEW_NOTE` — always a new note.

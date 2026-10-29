@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v4
+        with:
+          sdk-components: |
+            platforms;android-35
+            build-tools;35.0.0
+
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest
+
+      - name: Assemble release APK
+        run: ./gradlew assembleRelease
+
+      - name: Publish APK to GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF_NAME:-v${{ github.run_number }}}"
+          apk="app/build/outputs/apk/release/app-release-unsigned.apk"
+          if [ ! -f "$apk" ]; then
+            apk=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
+          fi
+          gh release create "$tag" "$apk" \
+            --title "Quick Notes $tag" \
+            --notes "Automated release of \`$apk\` built from \`${GITHUB_SHA}\`." \
+            --latest

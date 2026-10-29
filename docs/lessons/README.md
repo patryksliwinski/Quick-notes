@@ -6,6 +6,7 @@ Self-improving log for this repo.
 
 | Date | Lesson | File |
 |---|---|---|
+| `2026-10-29` | [Release APK published to GitHub Releases via a dedicated `release.yml` (unsigned for now)](2026-10-29-release-apk-github-releases-workflow.md) |
 | `2026-10-29` | [CI lint caught minSdk bugs: `readNBytes` needs API 33; tile API deprecated](2026-10-29-lint-newapi-and-deprecated-tile-api.md) |
 | `2026-10-29` | [`actions/setup-android` moved to `android-actions/setup-android@v4`](2026-10-29-ci-setup-android-action-moved.md) |
 | `2026-10-29` | [No human review: the agent self-reviews, comments, then fixes](2026-10-29-agent-self-review-no-human-gate.md) |

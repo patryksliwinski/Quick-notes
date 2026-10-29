@@ -38,6 +38,7 @@ Rules:
 |---|---|---|
 | `ci.yml` | push to `main`, PRs | `testDebugUnitTest`, `assembleDebug`, `lintDebug`; uploads APK artifact on PRs |
 | `pr-review.yml` | PR opened/synchronized | Layer 1 (static, fast): CI checks + golden-rule grep, posts a comment. Layer 2 (AI): requests a Copilot code review on the PR. Layer 3 (agent): a Mistral agent reviews the diff and posts a formal review via the GitHub App; the implementing agent self-reviews and fixes its own comments |
+| `release.yml` | tag `v*` pushed, or manual `workflow_dispatch` | Runs `testDebugUnitTest`, builds `assembleRelease`, and publishes the APK to a GitHub Release for the tag (`contents: write` scoped to this job only) |
 
 ## Test requirements per PR
 

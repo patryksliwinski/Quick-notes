@@ -5,9 +5,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.patryksliwinski.quicknotes.data.NoteMeta
 import com.patryksliwinski.quicknotes.data.NoteRepository
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -29,6 +32,9 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     val folderRevoked: StateFlow<Boolean> = repository.folderRevoked
     val storageName: StateFlow<String> = repository.storageName
 
+    private val _deleteEvents = MutableSharedFlow<NoteMeta?>(extraBufferCapacity = 1)
+    val deleteEvents: SharedFlow<NoteMeta?> = _deleteEvents.asSharedFlow()
+
     fun refresh() = viewModelScope.launch { repository.refresh() }
 
     fun onQueryChange(q: String) {
@@ -42,7 +48,10 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun deleteNote(meta: NoteMeta) = viewModelScope.launch { repository.deleteNote(meta) }
+    fun deleteNote(meta: NoteMeta) = viewModelScope.launch {
+        val deleted = repository.deleteNote(meta)
+        _deleteEvents.tryEmit(if (deleted) meta else null)
+    }
 
     fun undoDelete() = viewModelScope.launch { repository.undoDelete() }
 }

@@ -34,7 +34,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,7 +42,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.patryksliwinski.quicknotes.R
 import com.patryksliwinski.quicknotes.data.NoteMeta
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -60,12 +58,32 @@ fun NotesListScreen(
     val folderRevoked by viewModel.folderRevoked.collectAsState()
     val storageName by viewModel.storageName.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
     val deletedMsg = stringResource(R.string.note_deleted)
+    val deleteFailedMsg = stringResource(R.string.delete_failed)
     val undoLabel = stringResource(R.string.undo)
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.deleteEvents.collect { deleted ->
+            if (deleted != null) {
+                val result = snackbarHostState.showSnackbar(
+                    message = deletedMsg,
+                    actionLabel = undoLabel,
+                    duration = SnackbarDuration.Short,
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    viewModel.undoDelete()
+                }
+            } else {
+                snackbarHostState.showSnackbar(
+                    message = deleteFailedMsg,
+                    duration = SnackbarDuration.Short,
+                )
+            }
+        }
     }
 
     Scaffold(
@@ -138,16 +156,6 @@ fun NotesListScreen(
                             confirmValueChange = { value ->
                                 if (value == SwipeToDismissBoxValue.EndToStart || value == SwipeToDismissBoxValue.StartToEnd) {
                                     viewModel.deleteNote(note)
-                                    scope.launch {
-                                        val result = snackbarHostState.showSnackbar(
-                                            message = deletedMsg,
-                                            actionLabel = undoLabel,
-                                            duration = SnackbarDuration.Short,
-                                        )
-                                        if (result == SnackbarResult.ActionPerformed) {
-                                            viewModel.undoDelete()
-                                        }
-                                    }
                                     true
                                 } else false
                             }

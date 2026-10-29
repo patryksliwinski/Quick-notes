@@ -1,0 +1,5 @@
+# 2026-10-29 — Swipe-to-delete failures must surface as a snackbar, never a crash
+
+- **Context:** Issue #15 — swiping a note to delete crashed the app whenever the delete path threw (SAF `DocumentsContract.deleteDocument`, file I/O), because `NotesListScreen` launched the delete inside `confirmValueChange` and no layer on the path caught exceptions.
+- **Lesson:** `SwipeToDismissBoxState.confirmValueChange` is not a safe place for I/O or unguarded coroutine work; repository I/O must return a result instead of throwing, and the UI must react to that result from a real coroutine scope. I/O failures surface as a snackbar, never a crash.
+- **Rule now:** `NoteRepository.deleteNote` catches non-cancellation exceptions and returns `Boolean`; `NotesViewModel.deleteNote` emits the deleted `NoteMeta` (or `null` on failure) on a `SharedFlow`; `NotesListScreen` collects that flow in a `LaunchedEffect` to show the "Note deleted / Undo" or "Could not delete note" snackbar. Encoded in AGENTS.md error-handling rule.

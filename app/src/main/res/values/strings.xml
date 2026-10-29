@@ -11,6 +11,7 @@
     <string name="folder_default">App-private storage</string>
     <string name="folder_revoked">Folder access lost — notes use app-private storage. Pick the folder again in Settings.</string>
     <string name="note_deleted">Note deleted</string>
+    <string name="delete_failed">Could not delete note</string>
     <string name="undo">Undo</string>
     <string name="untitled">Untitled</string>
     <string name="empty_notes">No notes yet. Tap + or use the home-screen widget.</string>

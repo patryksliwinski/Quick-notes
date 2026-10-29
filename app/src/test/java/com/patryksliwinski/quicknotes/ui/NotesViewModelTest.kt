@@ -13,6 +13,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -136,6 +137,34 @@ class NotesViewModelTest {
             repo.refresh()
             assertEquals("# Temp\nbye", repo.readNote(meta.uri))
         }
+    }
+
+    @Test
+    fun `deleteNote emits the deleted note on success`() {
+        val meta = createWithContent("# Temp", "bye")
+        viewModel.refresh()
+        waitFor { viewModel.notes.value.size == 1 }
+        val events = mutableListOf<NoteMeta?>()
+        val job = collectorScope.launch { viewModel.deleteEvents.collect { events.add(it) } }
+        viewModel.deleteNote(meta)
+        waitFor { events.isNotEmpty() }
+        assertEquals(meta.uri, events.first()!!.uri)
+        job.cancel()
+    }
+
+    @Test
+    fun `deleteNote emits null and keeps the note when storage fails`() {
+        val meta = createWithContent("# Ghost", "gone")
+        viewModel.refresh()
+        waitFor { viewModel.notes.value.size == 1 }
+        java.io.File(java.net.URI(meta.uri)).delete()
+        val events = mutableListOf<NoteMeta?>()
+        val job = collectorScope.launch { viewModel.deleteEvents.collect { events.add(it) } }
+        viewModel.deleteNote(meta)
+        waitFor { events.isNotEmpty() }
+        assertNull(events.first())
+        waitFor { viewModel.notes.value.size == 1 }
+        job.cancel()
     }
 
     @Test

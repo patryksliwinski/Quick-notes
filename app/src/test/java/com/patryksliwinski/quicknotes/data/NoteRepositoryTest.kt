@@ -3,6 +3,7 @@ package com.patryksliwinski.quicknotes.data
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -84,6 +85,25 @@ class NoteRepositoryTest {
         assertEquals(1, restored.size)
         assertEquals(meta.uri, restored[0].uri)
         assertEquals("# Keep\nrestore me", repository.readNote(restored[0].uri))
+    }
+
+    @Test
+    fun `deleteNote returns false and keeps the note when storage throws`() = runTest {
+        val (meta) = seed("# Keep\nsafe")
+        val failing = object : NoteStore {
+            override suspend fun listNotes() = emptyList<NoteMeta>()
+            override suspend fun createNote(): NoteMeta = throw UnsupportedOperationException()
+            override suspend fun restoreNote(name: String, content: String): NoteMeta = throw UnsupportedOperationException()
+            override suspend fun readNote(uri: String) = ""
+            override suspend fun writeNote(uri: String, content: String) {}
+            override suspend fun deleteNote(uri: String): Nothing = throw java.io.IOException("disk gone")
+            override fun displayName() = "failing"
+        }
+        val field = NoteRepository::class.java.getDeclaredField("store")
+        field.isAccessible = true
+        field.set(repository, failing)
+        assertFalse(repository.deleteNote(meta))
+        assertEquals(1, repository.notes.first().size)
     }
 
     @Test

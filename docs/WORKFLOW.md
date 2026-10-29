@@ -15,29 +15,29 @@ How work happens in this repo: branches, PRs, pipelines, reviews, and the self-i
 3. A human reviews the code and the checklist in the PR template.
 4. Merge only when: CI green, automated review has no blocking findings, human approval, and the Lessons section is filled.
 
-## The self-improving docs loop (LESSONS.md)
+## The self-improving docs loop (docs/lessons/)
 
-`docs/LESSONS.md` is the repo's memory. It is updated **in the same PR** that introduces the change it describes.
+`docs/lessons/` is the repo's memory. It is updated **in the same PR** that introduces the change it describes.
 
 Rules:
 
-- One entry per lesson, newest at top, format:
+- One **file** per lesson: `docs/lessons/YYYY-MM-DD-short-slug.md`, linked from the index table in `docs/lessons/README.md` (newest first). File format:
   ```markdown
-  ### YYYY-MM-DD — <short title>
+  # YYYY-MM-DD — Short title
   - **Context:** what task/PR prompted this
   - **Lesson:** the takeaway in one or two sentences
-  - **Rule now:** the concrete rule added to AGENTS.md / this doc / code (if any)
+  - **Rule now:** the concrete rule added to AGENTS.md / docs / code (if any)
   ```
 - A lesson is anything that would have changed the outcome if known earlier: a perf trap, an API gotcha, a UX decision, a CI failure, a review finding.
-- If a PR adds a rule to `AGENTS.md`, it must also add a LESSONS.md entry explaining why.
-- Periodically (every ~10 entries), fold recurring lessons into `AGENTS.md` / `docs/WORKFLOW.md` / `docs/ARCHITECTURE.md` and mark the folded entries as `(folded)`.
+- If a PR adds a rule to `AGENTS.md`, it must also add a `docs/lessons/` file explaining why.
+- Periodically (every ~10 lessons), fold recurring ones into `AGENTS.md` / `docs/WORKFLOW.md` / `docs/ARCHITECTURE.md` and mark the lesson file `(folded)` in the index.
 
 ## Pipelines (`.github/workflows/`)
 
 | Workflow | Trigger | Does |
 |---|---|---|
 | `ci.yml` | push to `main`, PRs | `testDebugUnitTest`, `assembleDebug`, `lintDebug`; uploads APK artifact on PRs |
-| `pr-review.yml` | PR opened/synchronized | runs CI checks, then an automated review that posts a comment: checklist vs `AGENTS.md`, test coverage of changed files, lessons-section presence, forbidden patterns (sync-specific code, main-thread I/O) |
+| `pr-review.yml` | PR opened/synchronized | runs CI checks, then an automated review that posts a comment: checklist vs `AGENTS.md`, test coverage of changed files, lessons-file presence (`docs/lessons/`), forbidden patterns (sync-specific code, main-thread I/O) |
 
 ## Test requirements per PR
 
@@ -47,4 +47,4 @@ Rules:
 
 ## Code review checklist (human)
 
-Mirror of the PR template: quick-path purity, no main-thread I/O, optimistic UI, sync-agnostic storage, strings externalized, tests added, docs/LESSONS updated.
+Mirror of the PR template: quick-path purity, no main-thread I/O, optimistic UI, sync-agnostic storage, strings externalized, tests added, docs/lessons/ updated.

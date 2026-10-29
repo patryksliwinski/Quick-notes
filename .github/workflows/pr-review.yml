@@ -72,10 +72,10 @@ jobs:
             if [ -n "$changed_kt" ] && ! git diff --name-only origin/main...HEAD | grep -q 'src/test'; then
               echo "- ⚠️ Kotlin source changed but no test file changed — add/adjust tests if new logic was introduced."
             fi
-            if ! git diff origin/main...HEAD --name-only | grep -q 'docs/LESSONS.md'; then
-              echo "- ⚠️ No \`docs/LESSONS.md\` entry in this PR. If this change taught you something, add one (see docs/WORKFLOW.md)."
+            if ! git diff origin/main...HEAD --name-only | grep -q 'docs/lessons/'; then
+              echo "- ⚠️ No \`docs/lessons/\` entry in this PR. If this change taught you something, add one (see docs/WORKFLOW.md)."
             else
-              echo "- ✅ LESSONS.md updated."
+              echo "- ✅ docs/lessons/ updated."
             fi
             if ! git diff origin/main...HEAD --name-only | grep -q 'AGENTS.md\|docs/\|CONTRIBUTING.md'; then
               echo "- ℹ️ No doc/AGENTS.md changes (fine if none were needed)."

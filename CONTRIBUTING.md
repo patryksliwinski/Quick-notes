@@ -29,7 +29,7 @@ Read `AGENTS.md` first — it is the authoritative guide for agents and humans. 
 
 ## Lessons log
 
-Append to `docs/LESSONS.md` in the same PR as the change — see `docs/WORKFLOW.md` for the format. This is how the repo improves itself.
+Add a file under `docs/lessons/` in the same PR as the change — see `docs/WORKFLOW.md` for the format. This is how the repo improves itself.
 
 ## What not to do
 

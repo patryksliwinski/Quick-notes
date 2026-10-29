@@ -26,7 +26,7 @@
 - [ ] Instrumented test added, or reason why not (SAF/device-only paths)
 
 ## Lessons
-- [ ] Appended an entry to `docs/LESSONS.md` describing what this PR taught us (required if any non-trivial decision was made)
+- [ ] Added a file under `docs/lessons/` (+ index row) describing what this PR taught us (required if any non-trivial decision was made)
 - [ ] Updated `AGENTS.md` / `docs/WORKFLOW.md` / `docs/ARCHITECTURE.md` if a rule changed (required if behavior contract changed)
 
 ## Screenshots / demo

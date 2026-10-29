@@ -1,6 +1,8 @@
 package com.patryksliwinski.quicknotes.data
 
 import android.content.Context
+import android.content.Intent
+import com.patryksliwinski.quicknotes.receiver.RecentNotesWidgetProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,12 +30,14 @@ class NoteRepository(private val context: Context) {
     suspend fun createNote(): NoteMeta = withContext(Dispatchers.IO) {
         val note = store.createNote()
         _notes.value = listOf(note) + _notes.value
+        requestWidgetRefresh()
         note
     }
 
     suspend fun restoreNote(meta: NoteMeta, content: String) = withContext(Dispatchers.IO) {
         val restored = store.restoreNote(meta.name, content)
         _notes.value = listOf(restored) + _notes.value.filter { it.uri != meta.uri }
+        requestWidgetRefresh()
     }
 
     suspend fun readNote(uri: String): String = withContext(Dispatchers.IO) {
@@ -52,6 +56,7 @@ class NoteRepository(private val context: Context) {
                 )
             } else meta
         }.sortedByDescending { it.lastModified }
+        requestWidgetRefresh()
     }
 
     suspend fun deleteNote(meta: NoteMeta): Boolean = withContext(Dispatchers.IO) {
@@ -60,6 +65,7 @@ class NoteRepository(private val context: Context) {
             store.deleteNote(meta.uri)
             _notes.value = _notes.value.filter { it.uri != meta.uri }
             DeletedNoteHolder.last = DeletedNote(meta, content)
+            requestWidgetRefresh()
             true
         } catch (e: CancellationException) {
             throw e
@@ -72,6 +78,13 @@ class NoteRepository(private val context: Context) {
         val last = DeletedNoteHolder.last ?: return@withContext
         DeletedNoteHolder.last = null
         restoreNote(last.meta, last.content)
+    }
+
+    private fun requestWidgetRefresh() {
+        val intent = Intent(RecentNotesWidgetProvider.ACTION_REFRESH).apply {
+            setPackage(context.packageName)
+        }
+        context.sendBroadcast(intent)
     }
 }
 

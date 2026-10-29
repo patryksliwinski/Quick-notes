@@ -8,7 +8,7 @@ app/src/main/java/com/patryksliwinski/quicknotes/
 │   ├── NoteStore.kt        # NoteStore interface + InternalNoteStore + SafNoteStore, folder prefs, filename/title helpers
 │   └── NoteRepository.kt   # single source of truth: in-memory StateFlow<List<NoteMeta>>, optimistic mutations
 ├── ui/
-│   ├── MainActivity.kt     # single activity, screen state machine (List / Editor / Settings), ACTION_NEW_NOTE
+│   ├── MainActivity.kt     # single activity, screen state machine (List / Editor / Settings), ACTION_NEW_NOTE / ACTION_OPEN_NOTE
 │   ├── NotesListScreen.kt  # search field + LazyColumn + swipe-to-delete + undo snackbar
 │   ├── NotesViewModel.kt
 │   ├── EditorScreen.kt     # monospace TextField, debounced autosave
@@ -16,8 +16,9 @@ app/src/main/java/com/patryksliwinski/quicknotes/
 │   └── SettingsScreen.kt   # SAF folder picker (ACTION_OPEN_DOCUMENT_TREE + persisted URI permission)
 ├── receiver/
 │   ├── BaseWidgetProvider.kt   # abstract AppWidgetProvider: builds RemoteViews, applies shared widget_background, attaches PendingIntents, pushes updates
-│   ├── NewNoteWidgetProvider.kt # home-screen widget -> ACTION_NEW_NOTE (extends the base)
-│   └── WidgetNoteLoader.kt     # off-main-thread helper: active NoteStore (goAsync + Dispatchers.IO) -> recent List<NoteMeta> for RemoteViews
+│   ├── NewNoteWidgetProvider.kt     # home-screen widget -> ACTION_NEW_NOTE (extends the base)
+│   ├── RecentNotesWidgetProvider.kt # home-screen widget: 5 most recent notes -> ACTION_OPEN_NOTE per row (goAsync + WidgetNoteLoader)
+│   └── WidgetNoteLoader.kt         # off-main-thread helper: active NoteStore (goAsync + Dispatchers.IO) -> recent List<NoteMeta> + widgetRows() mapping for RemoteViews
 └── tile/QuickNoteTileService.kt       # QS tile -> ACTION_NEW_NOTE
 ```
 
@@ -29,6 +30,7 @@ app/src/main/java/com/patryksliwinski/quicknotes/
 4. Edit: `EditorViewModel.onContentChange` debounces 400 ms, then `repository.writeNote` on `Dispatchers.IO`; the flow entry's title/snippet/mtime update optimistically in-memory.
 5. Delete: remove from flow instantly, delete the document on `Dispatchers.IO`, keep the last deleted note for one-tap undo (restores the file with original content).
 6. `onResume` re-runs `refresh()` — this is how externally synced changes appear (no FileObserver on SAF paths).
+7. `NoteRepository` create/edit/delete/restore broadcast a package-scoped `ACTION_REFRESH`, which `RecentNotesWidgetProvider` answers by re-running `onUpdate` (goAsync + `Dispatchers.IO`) — widgets never rescan per keystroke, only on mutations and host updates.
 
 ## Storage decisions
 

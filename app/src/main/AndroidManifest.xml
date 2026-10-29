@@ -30,6 +30,18 @@
                 android:resource="@xml/new_note_widget_info" />
         </receiver>
 
+        <receiver
+            android:name=".receiver.RecentNotesWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.patryksliwinski.quicknotes.action.RECENT_NOTES_REFRESH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/recent_notes_widget_info" />
+        </receiver>
+
         <service
             android:name=".tile.QuickNoteTileService"
             android:exported="true"

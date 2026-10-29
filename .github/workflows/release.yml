@@ -34,19 +34,39 @@ jobs:
       - name: Unit tests
         run: ./gradlew testDebugUnitTest
 
+      - name: Generate ephemeral signing keystore
+        run: |
+          keytool -genkeypair \
+            -keystore release.keystore \
+            -alias quicknotes \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass quicknotes -keypass quicknotes \
+            -dname "CN=Quick Notes"
+
       - name: Assemble release APK
         run: ./gradlew assembleRelease
+
+      - name: Sign and verify APK
+        run: |
+          sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}}"
+          apksigner="$sdk_root/build-tools/35.0.0/apksigner"
+          unsigned="app/build/outputs/apk/release/app-release-unsigned.apk"
+          signed="app/build/outputs/apk/release/app-release.apk"
+          "$apksigner" sign \
+            --ks release.keystore \
+            --ks-pass pass:quicknotes \
+            --key-pass pass:quicknotes \
+            --out "$signed" \
+            "$unsigned"
+          "$apksigner" verify --print-certs "$signed"
 
       - name: Publish APK to GitHub Releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${GITHUB_REF_NAME:-v${{ github.run_number }}}"
-          apk="app/build/outputs/apk/release/app-release-unsigned.apk"
-          if [ ! -f "$apk" ]; then
-            apk=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
-          fi
+          apk="app/build/outputs/apk/release/app-release.apk"
           gh release create "$tag" "$apk" \
             --title "Quick Notes $tag" \
-            --notes "Automated release of \`$apk\` built from \`${GITHUB_SHA}\`." \
+            --notes "Automated signed release of \`$apk\` built from \`${GITHUB_SHA}\`." \
             --latest

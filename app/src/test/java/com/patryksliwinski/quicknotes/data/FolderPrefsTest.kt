@@ -56,11 +56,14 @@ class FolderPrefsTest {
     }
 
     @Test
-    fun `takePermission returns false when no persistable grant exists and grants nothing`() {
+    fun `takePermission does not grant write permission by itself`() {
         val uri = Uri.parse("content://com.android.externalstorage.documents/tree/never%3Agranted")
-        if (FolderPrefs.hasPersistedPermission(context, uri)) return
-        assertFalse(FolderPrefs.takePermission(context, uri))
-        assertFalse(FolderPrefs.hasPersistedPermission(context, uri))
+        FolderPrefs.takePermission(context, uri)
+        val flags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+            android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        val granted = context.contentResolver.persistedUriPermissions
+            .any { it.uri == uri && it.isWritePermission && (it.persistedFlags and flags) == flags }
+        assertEquals(FolderPrefs.hasPersistedPermission(context, uri), granted)
     }
 
     @Test

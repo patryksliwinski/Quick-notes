@@ -1,6 +1,7 @@
 package com.patryksliwinski.quicknotes.data
 
 import android.content.Context
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -53,11 +54,18 @@ class NoteRepository(private val context: Context) {
         }.sortedByDescending { it.lastModified }
     }
 
-    suspend fun deleteNote(meta: NoteMeta) = withContext(Dispatchers.IO) {
-        val content = store.readNote(meta.uri)
-        store.deleteNote(meta.uri)
-        _notes.value = _notes.value.filter { it.uri != meta.uri }
-        DeletedNoteHolder.last = DeletedNote(meta, content)
+    suspend fun deleteNote(meta: NoteMeta): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val content = store.readNote(meta.uri)
+            store.deleteNote(meta.uri)
+            _notes.value = _notes.value.filter { it.uri != meta.uri }
+            DeletedNoteHolder.last = DeletedNote(meta, content)
+            true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            false
+        }
     }
 
     suspend fun undoDelete() = withContext(Dispatchers.IO) {

@@ -1,24 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/widget_new_note"
+    android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_background"
     android:gravity="center"
     android:orientation="vertical"
-    android:padding="8dp">
+    android:padding="@dimen/widget_padding">
 
     <ImageView
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:layout_width="@dimen/widget_icon_size"
+        android:layout_height="@dimen/widget_icon_size"
         android:contentDescription="@string/widget_new_note"
         android:src="@drawable/ic_note_add_24" />
 
     <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="@string/widget_new_note"
-        android:textColor="#FFFFFF"
-        android:textSize="12sp" />
+        style="@style/WidgetLabelText"
+        android:text="@string/widget_new_note" />
 </LinearLayout>

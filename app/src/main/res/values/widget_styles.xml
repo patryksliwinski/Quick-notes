@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_background_color">#3F51B5</color>
+    <color name="widget_text_color">#FFFFFF</color>
+
+    <dimen name="widget_corner_radius">16dp</dimen>
+    <dimen name="widget_padding">8dp</dimen>
+    <dimen name="widget_icon_size">40dp</dimen>
+    <dimen name="widget_label_margin_top">4dp</dimen>
+    <dimen name="widget_label_text_size">12sp</dimen>
+
+    <style name="WidgetLabelText">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">@dimen/widget_label_margin_top</item>
+        <item name="android:textColor">@color/widget_text_color</item>
+        <item name="android:textSize">@dimen/widget_label_text_size</item>
+    </style>
+</resources>

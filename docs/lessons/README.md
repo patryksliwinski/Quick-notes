@@ -6,6 +6,7 @@ Self-improving log for this repo.
 
 | Date | Lesson | File |
 |---|---|---|
+| `2026-10-29` | [Widgets share a base provider; adding one is a 4-step checklist](2026-10-29-shared-widget-base-4-step-pattern.md) |
 | `2026-10-29` | [Release notes always generated from commits since the previous tag and attached via `--notes-file`](2026-10-29-release-notes-always-generated.md) |
 | `2026-10-29` | [Swipe-to-delete failures must surface as a snackbar, never a crash (issue #15)](2026-10-29-delete-failures-snackbar-never-crash.md) |
 | `2026-10-29` | [80% line+branch coverage is enforced with Kover (`koverVerifyDebug`), not JaCoCo; device-only classes are excluded from the gate](2026-10-29-kover-80-percent-coverage-gate.md) |

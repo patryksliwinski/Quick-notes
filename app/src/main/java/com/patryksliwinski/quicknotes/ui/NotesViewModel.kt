@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 
 class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -34,7 +36,10 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun createNote(onCreated: (NoteMeta) -> Unit) = viewModelScope.launch {
-        onCreated(repository.createNote())
+        val note = repository.createNote()
+        withContext(Dispatchers.Main) {
+            onCreated(note)
+        }
     }
 
     fun deleteNote(meta: NoteMeta) = viewModelScope.launch { repository.deleteNote(meta) }

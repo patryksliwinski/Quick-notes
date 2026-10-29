@@ -6,6 +6,7 @@ Self-improving log for this repo.
 
 | Date | Lesson | File |
 |---|---|---|
+| `2026-10-29` | [PR review is layered: fast static gate + AI agent review + human](2026-10-29-ai-agent-pr-review.md) |
 | `2026-10-29` | [Lessons live in a directory, not one big file](2026-10-29-lessons-as-directory.md) |
 | `2026-10-29` | [Sandbox GitHub credentials are read-only; use the gh credential helper for git](2026-10-29-sandbox-github-push-credentials.md) |
 | `2026-10-29` | [Kotlin 2.0 requires the Compose Compiler Gradle plugin, not composeOptions](2026-10-29-kotlin2-compose-compiler-plugin.md) |

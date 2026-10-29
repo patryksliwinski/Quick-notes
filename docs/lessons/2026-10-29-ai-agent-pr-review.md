@@ -1,0 +1,4 @@
+# 2026-10-29 — PR review is layered: fast static gate + AI agent review + human
+- **Context:** Repo workflow setup (PR #1) — the user asked whether review could be done by an AI agent instead of only a static scan.
+- **Lesson:** Yes, in layers. (1) The `pr-review.yml` static scan stays as a fast, deterministic gate (build/tests/lint + golden-rule grep). (2) The same workflow requests a Copilot AI review on every PR (`pulls.requestReviewers` with `copilot`). (3) A Mistral agent (Vibe) can review the actual diff against `AGENTS.md` and post a formal review via the GitHub App. Human review remains the final gate. Layer (1) catches mechanical failures instantly; layers (2)/(3) catch semantic issues.
+- **Rule now:** `pr-review.yml` requests the Copilot reviewer after checks; `docs/WORKFLOW.md` documents the three layers. Review findings that change behavior get a lesson file in this directory.

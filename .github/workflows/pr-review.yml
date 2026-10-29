@@ -85,6 +85,17 @@ jobs:
           } > review-comment.md
           cat review-comment.md
 
+      - name: Request AI code review (Copilot)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.pulls.requestReviewers({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              reviewers: ['copilot'],
+            }).catch(e => console.log('copilot review request:', e.message));
+
       - name: Post review comment
         uses: actions/github-script@v7
         with:

@@ -29,8 +29,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                AppRoot(notesViewModel, handleNewNote = intent?.action == ACTION_NEW_NOTE) { handled ->
-                    if (handled) intent = intent?.setAction(null)
+                AppRoot(
+                    notesViewModel,
+                    handleNewNote = intent?.action == ACTION_NEW_NOTE || pendingNewNote != null,
+                    pendingNote = pendingNewNote,
+                ) { handled ->
+                    if (handled) {
+                        intent = intent?.setAction(null)
+                        pendingNewNote = null
+                    }
                 }
             }
         }
@@ -39,7 +46,17 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (intent.action == ACTION_NEW_NOTE) {
+            notesViewModel.createNote { note ->
+                // Posted to the main looper so Compose state is updated on the UI thread.
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    pendingNewNote = note
+                }
+            }
+        }
     }
+
+    private var pendingNewNote by mutableStateOf<NoteMeta?>(null)
 
     override fun onResume() {
         super.onResume()
@@ -55,19 +72,25 @@ class MainActivity : ComponentActivity() {
 fun AppRoot(
     notesViewModel: NotesViewModel,
     handleNewNote: Boolean,
+    pendingNote: NoteMeta?,
     onHandled: (Boolean) -> Unit,
 ) {
     var screen by remember { mutableStateOf<Screen>(Screen.List) }
     val editorViewModel: EditorViewModel = viewModel()
 
-    LaunchedEffect(handleNewNote) {
-        if (handleNewNote) {
-            notesViewModel.createNote { note ->
-                editorViewModel.open(note)
-                screen = Screen.Editor(note)
+    LaunchedEffect(handleNewNote, pendingNote) {
+        if (!handleNewNote) return@LaunchedEffect
+        val note = pendingNote ?: run {
+            notesViewModel.createNote { created ->
+                editorViewModel.open(created)
+                screen = Screen.Editor(created)
             }
             onHandled(true)
+            return@LaunchedEffect
         }
+        editorViewModel.open(note)
+        screen = Screen.Editor(note)
+        onHandled(true)
     }
 
     when (val current = screen) {

@@ -11,7 +11,7 @@ How work happens in this repo: branches, PRs, pipelines, reviews, and the self-i
 ## Pull requests
 
 1. Open a PR (draft while iterating). Fill in `.github/PULL_REQUEST_TEMPLATE.md` completely — including the **Lessons** section.
-2. The `pr-review` pipeline runs automatically (see `.github/workflows/pr-review.yml`): build, unit tests, lint, and an automated review pass that checks the PR against `AGENTS.md` golden rules and leaves a comment with findings.
+2. The `pr-review` pipeline runs automatically in layers: (a) a fast static scan (build/tests/lint + golden-rule grep) posts a comment, and (b) a Copilot AI review is requested on the PR. A Mistral agent can additionally review the diff and post a formal review; a human still approves. See `.github/workflows/pr-review.yml`.
 3. A human reviews the code and the checklist in the PR template.
 4. Merge only when: CI green, automated review has no blocking findings, human approval, and the Lessons section is filled.
 
@@ -37,7 +37,7 @@ Rules:
 | Workflow | Trigger | Does |
 |---|---|---|
 | `ci.yml` | push to `main`, PRs | `testDebugUnitTest`, `assembleDebug`, `lintDebug`; uploads APK artifact on PRs |
-| `pr-review.yml` | PR opened/synchronized | runs CI checks, then an automated review that posts a comment: checklist vs `AGENTS.md`, test coverage of changed files, lessons-file presence (`docs/lessons/`), forbidden patterns (sync-specific code, main-thread I/O) |
+| `pr-review.yml` | PR opened/synchronized | Layer 1 (static, fast): CI checks + golden-rule grep, posts a comment. Layer 2 (AI): requests a Copilot code review on the PR. Layer 3 (agent/human): a Mistral agent may post a formal review via the GitHub App; a human approves |
 
 ## Test requirements per PR
 

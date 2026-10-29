@@ -189,7 +189,19 @@ class SafNoteStore(
     }
 
     private fun writeText(uri: Uri, content: String) {
-        resolver.openOutputStream(uri, "w")?.use { it.write(content.toByteArray(Charsets.UTF_8)) }
+        val tmpName = "." + uri.lastPathSegment + ".tmp"
+        val tmp = DocumentsContract.createDocument(resolver, treeUri, "application/octet-stream", tmpName)
+        try {
+            if (tmp != null) {
+                resolver.openOutputStream(tmp, "w")?.use { it.write(content.toByteArray(Charsets.UTF_8)) }
+                DocumentsContract.deleteDocument(resolver, uri)
+                DocumentsContract.renameDocument(resolver, tmp, uri.lastPathSegment ?: tmpName)
+            } else {
+                resolver.openOutputStream(uri, "w")?.use { it.write(content.toByteArray(Charsets.UTF_8)) }
+            }
+        } finally {
+            tmp?.let { runCatching { DocumentsContract.deleteDocument(resolver, it) } }
+        }
     }
 
     override suspend fun deleteNote(uri: String) {

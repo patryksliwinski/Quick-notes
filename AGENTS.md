@@ -19,6 +19,7 @@ Quick Notes is a minimal, fast Android app for quick markdown notes. Notes are p
 
 ```bash
 ./gradlew testDebugUnitTest   # unit tests — must pass
+./gradlew :app:koverVerifyDebug  # coverage gate — must pass (>= 80% line AND branch)
 ./gradlew assembleDebug       # must produce app-debug.apk
 ./gradlew lintDebug           # must not add new warnings
 ```
@@ -37,7 +38,9 @@ Requires JDK 17, Android SDK with `platforms;android-35` and `build-tools;35.0.0
 ## Test requirements
 
 - Every PR must keep `testDebugUnitTest` green and add tests for new pure logic (naming, title/snippet derivation, filtering).
-- Storage logic (`NoteStore`) is covered via unit tests where possible; SAF paths need an instrumented test on a device/emulator — mark them `@Ignore` in CI if no emulator is available, but state that in the PR.
+- **Coverage is enforced**: Kover verifies >= 80% line **and** branch coverage of unit-testable code on every PR (`./gradlew :app:koverVerifyDebug`, also a CI gate). HTML/XML reports land in `app/build/reports/kover/`.
+- Device-only code is excluded from the gate in `app/build.gradle.kts` (Compose screens, `MainActivity`, widget/tile receivers, `SafNoteStore`) — they need an emulator and are covered by `connectedDebugAndroidTest` instead.
+- Storage logic (`NoteStore`) is covered via unit tests where possible (`InternalNoteStore` runs on plain JVM; SAF paths need a device/emulator — mark them `@Ignore` in CI if no emulator is available, but state that in the PR).
 - No UI snapshot tests yet; if you add Compose UI tests, they must run under `testDebugUnitTest` (Robolectric) or `connectedDebugAndroidTest` in CI with an emulator.
 
 ## Workflow (summary — full version in docs/WORKFLOW.md)

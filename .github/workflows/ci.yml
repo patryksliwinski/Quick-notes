@@ -33,6 +33,17 @@ jobs:
       - name: Unit tests
         run: ./gradlew testDebugUnitTest
 
+      - name: Coverage gate (fail below 80% line/branch)
+        run: ./gradlew :app:koverVerifyDebug
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ github.run_id }}
+          path: app/build/reports/kover/
+          retention-days: 7
+
       - name: Lint (fail on new errors)
         run: ./gradlew lintDebug
 

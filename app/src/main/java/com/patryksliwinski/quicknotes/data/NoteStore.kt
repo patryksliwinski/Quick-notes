@@ -105,7 +105,7 @@ class InternalNoteStore(private val dir: File) : NoteStore {
         return NoteMeta(file.toURI().toString(), file.name, file.lastModified(), file.name.removeSuffix(".md"), "")
     }
 
-    private fun toFile(uri: String): File = File(Uri.parse(uri).path ?: "")
+    private fun toFile(uri: String): File = File(java.net.URI(uri).path ?: "")
 
     override suspend fun readNote(uri: String): String {
         return toFile(uri).readText()

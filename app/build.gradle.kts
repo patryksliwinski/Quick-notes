@@ -1,7 +1,10 @@
+import kotlinx.kover.gradle.plugin.dsl.CoverageUnit
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose") version "2.0.20"
+    id("org.jetbrains.kotlinx.kover")
 }
 
 android {
@@ -36,6 +39,9 @@ android {
     buildFeatures {
         compose = true
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 dependencies {
@@ -55,10 +61,36 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    testImplementation("org.robolectric:robolectric:4.16.1")
 }
 
 android {
     lint {
         disable += "StartActivityAndCollapseDeprecated"
+    }
+}
+
+kover {
+    reports {
+        filters {
+            excludes {
+                androidGeneratedClasses()
+                classes(
+                    "com.patryksliwinski.quicknotes.ui.MainActivity*",
+                    "com.patryksliwinski.quicknotes.ui.*ScreenKt*",
+                    "com.patryksliwinski.quicknotes.receiver.*",
+                    "com.patryksliwinski.quicknotes.tile.*",
+                    "com.patryksliwinski.quicknotes.data.SafNoteStore*",
+                )
+            }
+        }
+        verify {
+            rule("Min 80% line coverage") {
+                minBound(80)
+            }
+            rule("Min 80% branch coverage") {
+                minBound(80, CoverageUnit.BRANCH)
+            }
+        }
     }
 }

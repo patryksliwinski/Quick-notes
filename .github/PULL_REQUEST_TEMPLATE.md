@@ -9,6 +9,7 @@
 
 ## Verification
 - [ ] `./gradlew testDebugUnitTest` green (paste result)
+- [ ] `./gradlew :app:koverVerifyDebug` green — coverage >= 80% line and branch (paste result)
 - [ ] `./gradlew assembleDebug` green, APK produced
 - [ ] `./gradlew lintDebug` adds no new warnings
 - [ ] Manual check on device/emulator (describe what you tried) — or N/A

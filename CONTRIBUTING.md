@@ -6,7 +6,7 @@ Read `AGENTS.md` first — it is the authoritative guide for agents and humans. 
 
 - JDK 17, Android SDK with `platforms;android-35` + `build-tools;35.0.0`.
 - `echo "sdk.dir=/path/to/sdk" > local.properties` (git-ignored).
-- `./gradlew testDebugUnitTest assembleDebug` must pass before you open a PR.
+- `./gradlew testDebugUnitTest :app:koverVerifyDebug assembleDebug` must pass before you open a PR (the Kover task enforces >= 80% line and branch coverage; see `app/build.gradle.kts` for the excluded device-only classes).
 
 ## Branching & pushing
 

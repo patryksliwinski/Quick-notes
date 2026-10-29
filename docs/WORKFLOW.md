@@ -36,13 +36,14 @@ Rules:
 
 | Workflow | Trigger | Does |
 |---|---|---|
-| `ci.yml` | push to `main`, PRs | `testDebugUnitTest`, `assembleDebug`, `lintDebug`; uploads APK artifact on PRs |
+| `ci.yml` | push to `main`, PRs | `testDebugUnitTest`, `:app:koverVerifyDebug` (fails below 80% line/branch), `assembleDebug`, `lintDebug`; uploads APK + Kover coverage report artifacts |
 | `pr-review.yml` | PR opened/synchronized | Layer 1 (static, fast): CI checks + golden-rule grep, posts a comment. Layer 2 (AI): requests a Copilot code review on the PR. Layer 3 (agent): a Mistral agent reviews the diff and posts a formal review via the GitHub App; the implementing agent self-reviews and fixes its own comments |
 | `release.yml` | tag `v*` pushed, or manual `workflow_dispatch` | Runs `testDebugUnitTest`, builds `assembleRelease`, signs the APK with an ephemeral CI-generated keystore (`keytool` + `apksigner`), verifies the signature, and publishes `app-release.apk` to a GitHub Release for the tag (`contents: write` scoped to this job only) |
 
 ## Test requirements per PR
 
 - `testDebugUnitTest` green; new pure logic gets unit tests in `app/src/test/`.
+- Coverage gate: `:app:koverVerifyDebug` must pass — Kover rules in `app/build.gradle.kts` require >= 80% line and branch coverage of unit-testable code (device-only classes: Compose screens, `MainActivity`, widget/tile, `SafNoteStore` are excluded; they need an emulator).
 - Storage/SAF behavior: instrumented test or explicit note why not; CI skips emulator tests unless the `ci.yml` emulator job is enabled.
 - `lintDebug` adds no new warnings.
 

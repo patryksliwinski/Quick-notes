@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
 import java.io.File
+import java.io.InputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -54,10 +55,20 @@ fun deriveSnippet(name: String, head: String): String {
 }
 
 private fun readHead(uri: Uri, resolver: android.content.ContentResolver, maxBytes: Int = 4096): String {
-    return resolver.openInputStream(uri)?.use { input ->
-        input.readNBytes(maxBytes).toString(Charsets.UTF_8)
-    } ?: ""
+    return resolver.openInputStream(uri)?.use { it.readHead(maxBytes) } ?: ""
 }
+
+private fun InputStream.readHead(maxBytes: Int): String {
+    val buf = ByteArray(maxBytes)
+    var read = 0
+    while (read < maxBytes) {
+        val n = this.read(buf, read, maxBytes - read)
+        if (n < 0) break
+        read += n
+    }
+    return if (read > 0) String(buf, 0, read, Charsets.UTF_8) else ""
+}
+
 
 class InternalNoteStore(private val dir: File) : NoteStore {
 
@@ -69,7 +80,7 @@ class InternalNoteStore(private val dir: File) : NoteStore {
         return dir.listFiles()
             ?.filter { it.isFile && it.name.endsWith(".md") && !it.name.startsWith(".") }
             ?.map { f ->
-                val head = f.inputStream().use { it.readNBytes(4096).toString(Charsets.UTF_8) }
+                val head = f.inputStream().use { it.readHead(4096) }
                 NoteMeta(
                     uri = f.toURI().toString(),
                     name = f.name,

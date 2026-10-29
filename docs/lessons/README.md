@@ -6,6 +6,7 @@ Self-improving log for this repo.
 
 | Date | Lesson | File |
 |---|---|---|
+| `2026-10-29` | [Release notes always generated from commits since the previous tag and attached via `--notes-file`](2026-10-29-release-notes-always-generated.md) |
 | `2026-10-29` | [Release APK must be signed — unsigned APK is rejected as corrupt; sign with an ephemeral CI keystore](2026-10-29-release-apk-must-be-signed.md) |
 | `2026-10-29` | [Release APK published to GitHub Releases via a dedicated `release.yml` (unsigned for now)](2026-10-29-release-apk-github-releases-workflow.md) |
 | `2026-10-29` | [CI lint caught minSdk bugs: `readNBytes` needs API 33; tile API deprecated](2026-10-29-lint-newapi-and-deprecated-tile-api.md) |

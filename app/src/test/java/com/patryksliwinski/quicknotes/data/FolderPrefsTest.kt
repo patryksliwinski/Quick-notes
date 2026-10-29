@@ -56,12 +56,11 @@ class FolderPrefsTest {
     }
 
     @Test
-    fun `takePermission result matches persisted permission state`() {
-        val uri = Uri.parse("content://com.android.externalstorage.documents/tree/invalid")
-        assertEquals(
-            FolderPrefs.hasPersistedPermission(context, uri),
-            FolderPrefs.takePermission(context, uri),
-        )
+    fun `takePermission returns false when no persistable grant exists and grants nothing`() {
+        val uri = Uri.parse("content://com.android.externalstorage.documents/tree/never%3Agranted")
+        if (FolderPrefs.hasPersistedPermission(context, uri)) return
+        assertFalse(FolderPrefs.takePermission(context, uri))
+        assertFalse(FolderPrefs.hasPersistedPermission(context, uri))
     }
 
     @Test

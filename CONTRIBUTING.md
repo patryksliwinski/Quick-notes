@@ -25,7 +25,7 @@ Read `AGENTS.md` first — it is the authoritative guide for agents and humans. 
 - Fill in every section of `.github/PULL_REQUEST_TEMPLATE.md`, including **Lessons**.
 - The `pr-review` workflow posts an automated review comment; resolve its blocking findings.
 - CI (`ci.yml`) must be green: unit tests, `assembleDebug`, `lintDebug`.
-- Merge requires human approval + green CI + no blocking automated findings.
+- Merge requires green CI + no blocking automated findings. There is no human approval step: the implementing agent self-reviews its diff, posts the review as PR comments, then fixes those comments in follow-up commits (see docs/WORKFLOW.md).
 
 ## Lessons log
 

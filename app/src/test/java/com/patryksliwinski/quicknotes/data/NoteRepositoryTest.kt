@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -27,7 +28,7 @@ class NoteRepositoryTest {
     }
 
     private suspend fun seed(vararg contents: String): List<NoteMeta> {
-        return contents.map { repository.createNote().also { m -> repository.writeNote(m.uri, it) } }
+        return contents.map { repository.createNote()!!.also { m -> repository.writeNote(m.uri, it) } }
     }
 
     @Test
@@ -41,8 +42,94 @@ class NoteRepositoryTest {
 
     @Test
     fun `createNote prepends to list`() = runTest {
-        val meta = repository.createNote()
+        val meta = repository.createNote()!!
         assertEquals(meta.uri, repository.notes.first().first().uri)
+    }
+
+    @Test
+    fun `createNote falls back to internal storage when SAF create fails`() = runTest {
+        val repo = NoteRepository(context) { FailingNoteStore(failCreate = true) to false }
+        repo.refresh()
+        val meta = repo.createNote()
+        assertTrue(meta != null)
+        assertTrue(meta!!.uri.startsWith("file:"))
+        assertTrue(java.io.File(java.net.URI(meta.uri)).exists())
+        assertTrue(repo.folderRevoked.first())
+        assertEquals(NoteError.FolderUnavailable, repo.errorMessage.first())
+        assertEquals(1, repo.notes.first().size)
+        assertEquals(meta.uri, repo.notes.first().first().uri)
+    }
+
+    @Test
+    fun `createNote returns null with CreateFailed when even internal storage fails`() = runTest {
+        val notesDir = context.filesDir.resolve("notes")
+        notesDir.deleteRecursively()
+        notesDir.createNewFile()
+        repository.refresh()
+        val meta = repository.createNote()
+        assertNull(meta)
+        assertEquals(NoteError.CreateFailed, repository.errorMessage.first())
+        assertTrue(repository.notes.first().isEmpty())
+        notesDir.delete()
+    }
+
+    @Test
+    fun `createNote returns null when both SAF and internal stores fail`() = runTest {
+        val notesDir = context.filesDir.resolve("notes")
+        notesDir.deleteRecursively()
+        notesDir.createNewFile()
+        val repo = NoteRepository(context) { FailingNoteStore(failCreate = true) to false }
+        repo.refresh()
+        assertNull(repo.createNote())
+        assertTrue(repo.folderRevoked.first())
+        assertEquals(NoteError.FolderUnavailable, repo.errorMessage.first())
+        notesDir.delete()
+    }
+
+    @Test
+    fun `refresh falls back to internal storage when SAF listing fails`() = runTest {
+        val repo = NoteRepository(context) { FailingNoteStore(failList = true) to false }
+        repo.refresh()
+        assertTrue(repo.folderRevoked.first())
+        assertEquals(NoteError.FolderUnavailable, repo.errorMessage.first())
+        assertEquals("App-private storage", repo.storageName.first())
+        assertTrue(repo.notes.first().isEmpty())
+    }
+
+    @Test
+    fun `writeNote failure sets StorageError and does not crash`() = runTest {
+        val repo = NoteRepository(context) { FailingNoteStore(failCreate = false) to false }
+        repo.refresh()
+        repo.writeNote("content://failing/doc1", "hello")
+        assertEquals(NoteError.StorageError, repo.errorMessage.first())
+    }
+
+    @Test
+    fun `readNote failure sets StorageError and returns empty`() = runTest {
+        val repo = NoteRepository(context) { FailingNoteStore(failCreate = false) to false }
+        repo.refresh()
+        assertEquals("", repo.readNote("content://failing/doc1"))
+        assertEquals(NoteError.StorageError, repo.errorMessage.first())
+    }
+
+    @Test
+    fun `deleteNote failure sets StorageError and keeps the note`() = runTest {
+        val repo = NoteRepository(context) { FailingNoteStore(failCreate = false) to false }
+        repo.refresh()
+        val meta = repo.createNote()!!
+        assertFalse(repo.deleteNote(meta))
+        assertEquals(NoteError.StorageError, repo.errorMessage.first())
+        assertEquals(1, repo.notes.first().size)
+    }
+
+    @Test
+    fun `restoreNote failure sets StorageError and does not crash`() = runTest {
+        val repo = NoteRepository(context) { FailingNoteStore(failCreate = false) to false }
+        repo.refresh()
+        val meta = NoteMeta("content://failing/doc1", "doc1.md", 0L, "doc1", "")
+        repo.restoreNote(meta, "content")
+        assertEquals(NoteError.StorageError, repo.errorMessage.first())
+        assertTrue(repo.notes.first().isEmpty())
     }
 
     @Test

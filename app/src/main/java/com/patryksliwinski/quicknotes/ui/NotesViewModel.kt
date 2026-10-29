@@ -3,6 +3,7 @@ package com.patryksliwinski.quicknotes.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.patryksliwinski.quicknotes.data.NoteError
 import com.patryksliwinski.quicknotes.data.NoteMeta
 import com.patryksliwinski.quicknotes.data.NoteRepository
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -31,6 +32,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     val folderRevoked: StateFlow<Boolean> = repository.folderRevoked
     val storageName: StateFlow<String> = repository.storageName
+    val errorMessage: StateFlow<NoteError?> = repository.errorMessage
 
     private val _deleteEvents = MutableSharedFlow<NoteMeta?>(extraBufferCapacity = 1)
     val deleteEvents: SharedFlow<NoteMeta?> = _deleteEvents.asSharedFlow()
@@ -41,8 +43,12 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         _query.value = q
     }
 
+    fun clearError() = repository.clearError()
+
+    fun reportFolderPermissionLost() = repository.reportError(NoteError.FolderPermissionLost)
+
     fun createNote(onCreated: (NoteMeta) -> Unit) = viewModelScope.launch {
-        val note = repository.createNote()
+        val note = repository.createNote() ?: return@launch
         withContext(Dispatchers.Main) {
             onCreated(note)
         }

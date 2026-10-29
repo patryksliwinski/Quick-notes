@@ -1,5 +1,6 @@
 package com.patryksliwinski.quicknotes.ui
 
+import com.patryksliwinski.quicknotes.data.NoteError
 import com.patryksliwinski.quicknotes.data.NoteMeta
 import com.patryksliwinski.quicknotes.data.NoteRepository
 import kotlinx.coroutines.CoroutineScope
@@ -113,6 +114,35 @@ class NotesViewModelTest {
     }
 
     @Test
+    fun `createNote does not invoke callback when creation fails`() {
+        val failing = NotesViewModel(app)
+        failing.refresh()
+        waitFor { failing.storageName.value.isNotEmpty() }
+        val notesDir = app.filesDir.resolve("notes")
+        notesDir.deleteRecursively()
+        notesDir.createNewFile()
+        var called = false
+        failing.createNote { called = true }
+        waitFor { failing.errorMessage.value != null }
+        Thread.sleep(100)
+        assertFalse(called)
+        assertEquals(NoteError.CreateFailed, failing.errorMessage.value)
+        failing.clearError()
+        assertEquals(null, failing.errorMessage.value)
+        notesDir.delete()
+        viewModel.refresh()
+    }
+
+    @Test
+    fun `reportFolderPermissionLost surfaces FolderPermissionLost error`() {
+        viewModel.refresh()
+        waitFor { viewModel.storageName.value.isNotEmpty() }
+        viewModel.reportFolderPermissionLost()
+        waitFor { viewModel.errorMessage.value != null }
+        assertEquals(NoteError.FolderPermissionLost, viewModel.errorMessage.value)
+    }
+
+    @Test
     fun `createNote prepends and invokes callback`() {
         viewModel.refresh()
         waitFor { viewModel.storageName.value.isNotEmpty() }
@@ -157,13 +187,13 @@ class NotesViewModelTest {
         val meta = createWithContent("# Ghost", "gone")
         viewModel.refresh()
         waitFor { viewModel.notes.value.size == 1 }
-        java.io.File(java.net.URI(meta.uri)).delete()
+        val ghost = meta.copy(uri = "file:///nonexistent/ghost.md")
         val events = mutableListOf<NoteMeta?>()
         val job = collectorScope.launch { viewModel.deleteEvents.collect { events.add(it) } }
-        viewModel.deleteNote(meta)
+        viewModel.deleteNote(ghost)
         waitFor { events.isNotEmpty() }
         assertNull(events.first())
-        waitFor { viewModel.notes.value.size == 1 }
+        waitFor { viewModel.notes.value.size == 1 && viewModel.notes.value.first().uri == meta.uri }
         job.cancel()
     }
 

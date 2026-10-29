@@ -40,7 +40,10 @@ fun SettingsScreen(
         val uri: Uri? = result.data?.data
         if (uri != null) {
             FolderPrefs.saveFolderUri(context, uri)
-            FolderPrefs.takePermission(context, uri)
+            val persisted = FolderPrefs.takePermission(context, uri)
+            if (!persisted) {
+                viewModel.reportFolderPermissionLost()
+            }
             viewModel.refresh()
         }
     }

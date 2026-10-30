@@ -25,9 +25,9 @@ data class WidgetLayout(
     val showSubtitles: Boolean,
 )
 
-private const val WIDGET_VERTICAL_CHROME_DP = 40
-private const val ROW_FULL_DP = 40
-private const val ROW_TITLE_ONLY_DP = 26
+private const val WIDGET_VERTICAL_CHROME_DP = 20
+private const val ROW_FULL_DP = 36
+private const val ROW_TITLE_ONLY_DP = 22
 
 fun widgetLayoutForHeight(heightDp: Int, maxRows: Int): WidgetLayout {
     val available = (heightDp - WIDGET_VERTICAL_CHROME_DP).coerceAtLeast(0)
@@ -39,6 +39,16 @@ fun widgetLayoutForHeight(heightDp: Int, maxRows: Int): WidgetLayout {
             visibleRows = (available / ROW_TITLE_ONLY_DP).coerceIn(1, maxRows),
             showSubtitles = false,
         )
+    }
+}
+
+fun widgetHeightDp(options: android.os.Bundle, fallbackDp: Int): Int {
+    val maxH = options.getInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
+    val minH = options.getInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
+    return when {
+        maxH > 0 -> maxH
+        minH > 0 -> minH
+        else -> fallbackDp
     }
 }
 

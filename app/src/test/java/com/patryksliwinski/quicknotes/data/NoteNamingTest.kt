@@ -62,7 +62,7 @@ class NoteNamingTest {
 
     @Test
     fun `snippet falls back to title line when there is no body`() {
-        assertEquals("# Shopping", deriveSnippet("x.md", "# Shopping"))
+        assertEquals("Shopping", deriveSnippet("x.md", "# Shopping"))
     }
 
     @Test

@@ -55,8 +55,9 @@ class RecentNotesWidgetProvider : BaseWidgetProvider() {
         appWidgetId: Int,
         notes: List<NoteMeta>,
     ) {
-        val heightDp = appWidgetManager.getAppWidgetOptions(appWidgetId)
-            .getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, DEFAULT_HEIGHT_DP)
+        val heightDp = widgetHeightDp(
+            appWidgetManager.getAppWidgetOptions(appWidgetId), DEFAULT_HEIGHT_DP
+        )
         val layout = widgetLayoutForHeight(heightDp, MAX_NOTES)
         val rows = widgetRows(notes, layout.visibleRows, context.getString(R.string.widget_no_notes))
         val views = buildViews(context)
@@ -81,10 +82,13 @@ class RecentNotesWidgetProvider : BaseWidgetProvider() {
         for (i in ROW_IDS.indices) {
             val visible = i < rows.size
             views.setViewVisibility(ROW_IDS[i], if (visible) View.VISIBLE else View.GONE)
-            if (!visible) continue
-            val row = rows[i]
+            val row = rows.getOrElse(i) { WidgetRow(title = "", subtitle = "", noteUri = null) }
             views.setTextViewText(TITLE_IDS[i], row.title)
             views.setTextViewText(SUBTITLE_IDS[i], row.subtitle)
+            if (!visible) {
+                views.setViewVisibility(SUBTITLE_IDS[i], View.GONE)
+                continue
+            }
             val showSubtitle = layout.showSubtitles && row.subtitle.isNotEmpty()
             views.setViewVisibility(SUBTITLE_IDS[i], if (showSubtitle) View.VISIBLE else View.GONE)
             val uri = row.noteUri ?: continue

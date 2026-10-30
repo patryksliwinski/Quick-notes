@@ -11,10 +11,10 @@ object EditorPrefs {
     private const val KEY_THEME = "editor_theme"
 
     const val DEFAULT_FONT_SIZE_SP = 16
-    const val DEFAULT_DEBOUNCE_MS = 400L
+    const val DEFAULT_DEBOUNCE_MS = 50L
 
     val fontSizeOptions = listOf(12, 16, 20)
-    val debounceOptions = listOf(200L, 400L, 1000L)
+    val debounceOptions = listOf(50L, 200L, 400L, 1000L)
     val themeOptions = AppTheme.entries.toList()
 
     private fun prefs(context: Context) =

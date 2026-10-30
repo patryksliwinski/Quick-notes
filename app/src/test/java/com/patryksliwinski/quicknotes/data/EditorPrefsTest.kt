@@ -31,8 +31,8 @@ class EditorPrefsTest {
     }
 
     @Test
-    fun `debounce defaults to 400 ms`() {
-        assertEquals(400L, EditorPrefs.loadDebounceMs(context))
+    fun `debounce defaults to 50 ms`() {
+        assertEquals(50L, EditorPrefs.loadDebounceMs(context))
     }
 
     @Test
@@ -62,7 +62,7 @@ class EditorPrefsTest {
     @Test
     fun `options are the documented choices`() {
         assertEquals(listOf(12, 16, 20), EditorPrefs.fontSizeOptions)
-        assertEquals(listOf(200L, 400L, 1000L), EditorPrefs.debounceOptions)
+        assertEquals(listOf(50L, 200L, 400L, 1000L), EditorPrefs.debounceOptions)
         assertEquals(listOf(AppTheme.SYSTEM, AppTheme.LIGHT, AppTheme.DARK), EditorPrefs.themeOptions)
     }
 }

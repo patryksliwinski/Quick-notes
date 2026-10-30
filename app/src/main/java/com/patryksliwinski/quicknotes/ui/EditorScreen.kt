@@ -1,9 +1,17 @@
 package com.patryksliwinski.quicknotes.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Redo
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -25,8 +33,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,8 +51,13 @@ fun EditorScreen(
     onBack: () -> Unit,
     onDuplicate: (NoteMeta) -> Unit = {},
 ) {
+    val context = LocalContext.current
     val content by viewModel.content.collectAsState()
     val saveState by viewModel.saveState.collectAsState()
+    val stats by viewModel.stats.collectAsState()
+    val canUndo by viewModel.canUndo.collectAsState()
+    val canRedo by viewModel.canRedo.collectAsState()
+    val fontSizeSp by viewModel.fontSizeSp.collectAsState()
     var menuExpanded by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
@@ -80,12 +95,24 @@ fun EditorScreen(
                         text = savedText,
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(end = 16.dp),
+                        modifier = Modifier.padding(end = 8.dp),
                     )
+                    IconButton(onClick = viewModel::undo, enabled = canUndo) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Undo,
+                            contentDescription = stringResource(R.string.undo),
+                        )
+                    }
+                    IconButton(onClick = viewModel::redo, enabled = canRedo) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Redo,
+                            contentDescription = stringResource(R.string.redo),
+                        )
+                    }
                     IconButton(onClick = { menuExpanded = true }) {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
-                            contentDescription = stringResource(R.string.action_duplicate_note),
+                            contentDescription = stringResource(R.string.more_actions),
                         )
                     }
                     DropdownMenu(
@@ -99,28 +126,71 @@ fun EditorScreen(
                                 viewModel.duplicate(onDuplicate)
                             },
                         )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.insert_timestamp)) },
+                            onClick = {
+                                menuExpanded = false
+                                viewModel.insertTimestamp()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.share_note)) },
+                            onClick = {
+                                menuExpanded = false
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/markdown"
+                                    putExtra(Intent.EXTRA_TEXT, content)
+                                }
+                                context.startActivity(
+                                    Intent.createChooser(intent, context.getString(R.string.share_note))
+                                )
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.copy_note)) },
+                            onClick = {
+                                menuExpanded = false
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE)
+                                    as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText(noteTitle, content))
+                            },
+                        )
                     }
                 },
             )
         },
     ) { padding ->
-        TextField(
-            value = content,
-            onValueChange = viewModel::onContentChange,
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            textStyle = TextStyle(
-                fontSize = 16.sp,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-            ),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-            ),
-            placeholder = { Text(stringResource(R.string.editor_placeholder)) },
-        )
+        ) {
+            TextField(
+                value = content,
+                onValueChange = viewModel::onContentChange,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                textStyle = TextStyle(
+                    fontSize = fontSizeSp.sp,
+                    fontFamily = FontFamily.Monospace,
+                ),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                ),
+                placeholder = { Text(stringResource(R.string.editor_placeholder)) },
+            )
+            Text(
+                text = stringResource(R.string.word_count, stats.words, stats.characters),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+            )
+        }
     }
 }

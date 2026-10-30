@@ -15,6 +15,7 @@
 
 ## Lesson
 - (one line + a file under `docs/lessons/` if this PR taught something non-obvious; omit otherwise — rule-changing PRs always get one)
+- [ ] If this PR adds/renames/deletes files under `docs/lessons/`, the index in `docs/lessons/README.md` is updated in the same PR (CI `lessons-index` job fails otherwise)
 
 ## Self-review
 - [ ] Self-reviewed the diff against `AGENTS.md`; findings fixed in this branch (post them as PR comments only if there were actual findings)

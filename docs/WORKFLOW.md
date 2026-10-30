@@ -11,7 +11,7 @@ How work happens in this repo: branches, PRs, pipelines, reviews, and the self-i
 ## Pull requests
 
 1. Open a PR (draft while iterating). Fill in `.github/PULL_REQUEST_TEMPLATE.md`: **What & why**, which verification commands you ran, and the golden rules a machine can't check.
-2. The `CI` pipeline (`.github/workflows/pr.yml`) runs automatically in one workflow with two jobs on PR opened/synchronized (not on title/description edits): `build-and-test` runs the Gradle checks once (`testDebugUnitTest`, `:app:koverVerifyDebug`, `lintDebug`, `assembleDebug`) on pushes to `main` and PRs, and — on PRs only, after the build job — `automated-review` does a fast static golden-rule grep and posts a comment. The old Copilot review-request step was removed — across all 25 closed PRs it never produced a single review, so it only burned an API call per push (see `docs/lessons/2026-10-30-copilot-review-request-never-produced-reviews.md`). A Mistral agent can additionally review the diff and post a formal review. See `.github/workflows/pr.yml`.
+2. The `CI` pipeline (`.github/workflows/pr.yml`) runs automatically in one workflow with three jobs on PR opened/synchronized (not on title/description edits): `build-and-test` runs the Gradle checks once (`testDebugUnitTest`, `:app:koverVerifyDebug`, `lintDebug`, `assembleDebug`) on pushes to `main` and PRs, and — on PRs only — `lessons-index` fails the PR if the lessons index in `docs/lessons/README.md` doesn't match the files on disk, and `automated-review` (after the build job) does a fast static golden-rule grep and posts a comment. The old Copilot review-request step was removed — across all 25 closed PRs it never produced a single review, so it only burned an API call per push (see `docs/lessons/2026-10-30-copilot-review-request-never-produced-reviews.md`). A Mistral agent can additionally review the diff and post a formal review. See `.github/workflows/pr.yml`.
 3. The implementing agent reviews its own work **after CI on the final head is green**: run `gh pr checks --watch` (or wait for the `build-and-test` job of the current head), then read your own diff together with the CI/lint/coverage results against `AGENTS.md` and the PR-template checklist, push the review as comments on the PR, then address and fix those comments in follow-up commits. Re-run CI on the new head after fixing.
 4. Merge only when: the **final head's** CI run is green (verify with `gh pr checks <pr> --watch`), automated review has no blocking findings, and the agent's self-review comments are resolved. (A `docs/lessons/` entry is expected only when the PR taught something non-obvious.)
 
@@ -21,7 +21,7 @@ How work happens in this repo: branches, PRs, pipelines, reviews, and the self-i
 
 Rules:
 
-- One **file** per lesson: `docs/lessons/YYYY-MM-DD-short-slug.md`, linked from the index in `docs/lessons/README.md`. File format:
+- One **file** per lesson: `docs/lessons/YYYY-MM-DD-short-slug.md`, linked from the index in `docs/lessons/README.md`. The index must always match disk — every lesson file linked exactly once, no row pointing at a missing file; add/rename/delete lesson files and re-sync the index in the same PR. The `lessons-index` job in `.github/workflows/pr.yml` fails any PR where they disagree (added after issue #73). File format:
   ```markdown
   # YYYY-MM-DD — Short title
   - **Context:** what task/PR prompted this
@@ -36,14 +36,14 @@ Rules:
 
 | Workflow | Trigger | Does |
 |---|---|---|
-| `pr.yml` (`CI`) | push to `main`, PRs (opened/synchronized; not `edited` — title/body edits don't change code) | One workflow, two jobs. `build-and-test`: `gradle/actions/setup-gradle@v4` (caches `~/.gradle/caches` + the wrapper dist), then `testDebugUnitTest`, `:app:koverVerifyDebug` (fails below 80% line/branch), `lintDebug`, `assembleDebug`; uploads APK + Kover coverage report + test-result artifacts. `automated-review` (PRs only, `needs: build-and-test`): golden-rule grep against the diff, posts the automated-review comment (reporting the build job's result, no rebuild). Copilot review request removed — it never produced reviews (issue #49). Layer 3 (agent): a Mistral agent reviews the diff and posts a formal review via the GitHub App; the implementing agent self-reviews and fixes its own comments |
+| `pr.yml` (`CI`) | push to `main`, PRs (opened/synchronized; not `edited` — title/body edits don't change code) | Three jobs. `build-and-test`: `gradle/actions/setup-gradle@v4` (caches `~/.gradle/caches` + the wrapper dist), then `testDebugUnitTest`, `:app:koverVerifyDebug` (fails below 80% line/branch), `lintDebug`, `assembleDebug`; uploads APK + Kover coverage report + test-result artifacts. `lessons-index` (PRs only): fails the PR if the index in `docs/lessons/README.md` doesn't match `docs/lessons/` on disk (dead links, unindexed files, duplicate links — issue #73). `automated-review` (PRs only, `needs: build-and-test`): golden-rule grep against the diff, posts the automated-review comment (reporting the build job's result, no rebuild). Copilot review request removed — it never produced reviews (issue #49). Layer 3 (agent): a Mistral agent reviews the diff and posts a formal review via the GitHub App; the implementing agent self-reviews and fixes its own comments |
 | `release.yml` | tag `v*` pushed, or manual `workflow_dispatch` | Same `gradle/actions/setup-gradle@v4` caching, then runs `testDebugUnitTest`, builds `assembleRelease`, signs the APK with an ephemeral CI-generated keystore (`keytool` + `apksigner`), verifies the signature, and publishes `app-release.apk` to a GitHub Release for the tag. Release notes are generated from the commits since the previous tag (`git log prev..HEAD`, merge commits condensed to `(#N) title`) and attached via `--notes-file`, so every release always carries notes (`contents: write` scoped to this job only) |
 
 ## Test requirements per PR
 
 - `testDebugUnitTest` green; new pure logic gets unit tests in `app/src/test/`.
 - Coverage gate: `:app:koverVerifyDebug` must pass — Kover rules in `app/build.gradle.kts` require >= 80% line and branch coverage of unit-testable code (device-only classes: Compose screens, `MainActivity`, widget/tile, `SafNoteStore` are excluded; they need an emulator).
-- Storage/SAF behavior: instrumented test or explicit note why not; CI skips emulator tests unless the `pr.yml` emulator job is enabled.
+- Storage/SAF behavior: instrumented test or explicit note why not; CI does not run emulator/instrumented tests at all yet (no emulator job in `pr.yml`, no `app/src/androidTest` source set), so SAF on-device behavior is verified manually or via Robolectric unit tests.
 - `lintDebug` adds no new warnings.
 
 ## Code review checklist

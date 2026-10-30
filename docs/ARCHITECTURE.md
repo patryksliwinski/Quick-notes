@@ -25,7 +25,7 @@ app/src/main/java/com/patryksliwinski/quicknotes/
 ## Data flow
 
 1. `NoteRepository.refresh()` resolves the active `NoteStore` (SAF tree if a persisted writable URI permission exists, else internal dir) and loads `List<NoteMeta>` (uri, name, mtime, title, snippet) into a `StateFlow`.
-2. The list screen renders from that flow; search is a `combine()` filter over it — no disk access.
+2. The list screen renders from that flow; search/sort/day-grouping/count are pure `combine()` transforms over it (`data/NoteListLogic.kt`) — no disk access. Sort order and confirm-before-delete are UI prefs in `ListPrefs` (same SharedPreferences file as the folder URI).
 3. Create: optimistic insert into the flow + background `store.createNote()` (empty file). Editor opens immediately.
 4. Edit: `EditorViewModel.onContentChange` debounces 400 ms, then `repository.writeNote` on `Dispatchers.IO`; the flow entry's title/snippet/mtime update optimistically in-memory.
 5. Delete: remove from flow instantly, delete the document on `Dispatchers.IO`, keep the last deleted note for one-tap undo (restores the file with original content).

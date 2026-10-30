@@ -3,9 +3,15 @@ package com.patryksliwinski.quicknotes.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.patryksliwinski.quicknotes.data.ListPrefs
 import com.patryksliwinski.quicknotes.data.NoteError
+import com.patryksliwinski.quicknotes.data.NoteListRow
 import com.patryksliwinski.quicknotes.data.NoteMeta
 import com.patryksliwinski.quicknotes.data.NoteRepository
+import com.patryksliwinski.quicknotes.data.NoteSortOrder
+import com.patryksliwinski.quicknotes.data.filterNotes
+import com.patryksliwinski.quicknotes.data.groupByDay
+import com.patryksliwinski.quicknotes.data.sortNotes
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -13,6 +19,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -25,10 +32,19 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query
 
-    val notes: StateFlow<List<NoteMeta>> = combine(repository.notes, _query) { all, q ->
-        if (q.isBlank()) all
-        else all.filter { it.title.contains(q, ignoreCase = true) || it.snippet.contains(q, ignoreCase = true) }
+    private val _sortOrder = MutableStateFlow(ListPrefs.loadSortOrder(application))
+    val sortOrder: StateFlow<NoteSortOrder> = _sortOrder
+
+    private val _confirmDelete = MutableStateFlow(ListPrefs.loadConfirmDelete(application))
+    val confirmDelete: StateFlow<Boolean> = _confirmDelete
+
+    val notes: StateFlow<List<NoteMeta>> = combine(repository.notes, _query, _sortOrder) { all, q, order ->
+        sortNotes(filterNotes(all, q), order)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val listRows: StateFlow<List<NoteListRow>> = notes
+        .map { groupByDay(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val folderRevoked: StateFlow<Boolean> = repository.folderRevoked
     val storageName: StateFlow<String> = repository.storageName
@@ -41,6 +57,16 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     fun onQueryChange(q: String) {
         _query.value = q
+    }
+
+    fun onSortOrderChange(order: NoteSortOrder) {
+        _sortOrder.value = order
+        ListPrefs.saveSortOrder(getApplication(), order)
+    }
+
+    fun onConfirmDeleteChange(enabled: Boolean) {
+        _confirmDelete.value = enabled
+        ListPrefs.saveConfirmDelete(getApplication(), enabled)
     }
 
     fun clearError() = repository.clearError()

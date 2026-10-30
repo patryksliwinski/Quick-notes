@@ -28,4 +28,21 @@
     <string name="editor_placeholder">Start typing…</string>
     <string name="editor_saving">Saving…</string>
     <string name="editor_saved">Saved</string>
+    <plurals name="note_count">
+        <item quantity="one">%d note</item>
+        <item quantity="other">%d notes</item>
+    </plurals>
+    <string name="sort_by">Sort by</string>
+    <string name="sort_last_modified">Last modified</string>
+    <string name="sort_title">Title A–Z</string>
+    <string name="sort_filename_date">Filename date</string>
+    <string name="header_today">Today</string>
+    <string name="header_yesterday">Yesterday</string>
+    <string name="confirm_delete_title">Delete note?</string>
+    <string name="confirm_delete_message">This permanently deletes \"%1$s\". You can undo from the snackbar right after.</string>
+    <string name="confirm_delete_confirm">Delete</string>
+    <string name="confirm_delete_cancel">Cancel</string>
+    <string name="settings_confirm_delete">Confirm before delete</string>
+    <string name="settings_confirm_delete_summary">Ask before swipe-to-delete removes a note</string>
+    <string name="settings_sort_order">Sort order</string>
 </resources>

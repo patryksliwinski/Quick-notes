@@ -47,6 +47,8 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     val fontSizeSp: StateFlow<Int> = _fontSizeSp
 
     private var noteUri: String? = null
+    private var openGeneration = 0
+    private var contentDirty = false
     private var saveJob: Job? = null
     private var lastSaved: String = ""
     private var restoring = false
@@ -54,6 +56,8 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun open(meta: NoteMeta, prefill: String? = null) {
         if (noteUri == meta.uri && _content.value.isNotEmpty()) return
         noteUri = meta.uri
+        val generation = ++openGeneration
+        contentDirty = false
         saveJob?.cancel()
         _saveState.value = null
         undoStack.reset()
@@ -65,6 +69,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         } else {
             viewModelScope.launch {
                 val text = repository.readNote(meta.uri)
+                if (generation != openGeneration || contentDirty) return@launch
                 _content.value = text
                 lastSaved = text
                 _saveState.value = SaveState.Saved
@@ -86,6 +91,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun onContentChange(text: String) {
+        contentDirty = true
         _content.value = text
         scheduleSave(text)
     }
@@ -117,6 +123,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun restore(snapshot: String) {
+        contentDirty = true
         _content.value = snapshot
         syncUndoFlags()
         scheduleSave(snapshot, restoring = true)

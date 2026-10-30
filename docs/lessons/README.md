@@ -6,11 +6,9 @@ Self-improving log for this repo.
 
 | Date | Lesson | File |
 |---|---|---|
-<<<<<<< HEAD
 | `2026-10-30` | [Durability path must be synchronous (`commit()`, not `apply()`); SAF failures must throw, never return `""` — silent empty reads get autosaved over real files (issue #58)](2026-10-30-journal-record-must-commit-saf-failures-must-throw.md) |
 | `2026-10-30` | [One NoteRepository per process, shared by all ViewModels via an app-scoped holder — a repository owning a mutable index is a single source of truth only if there is one instance (issue #57)](2026-10-30-one-note-repository-per-process-shared-by-viewmodels.md) |
-=======
->>>>>>> abcb2be (fix: durability/data-loss fixes for quick-leave and SAF failures (#58))
+| `2026-10-30` | [Copilot review request never produced reviews (0/25 PRs) — step removed; self-review now happens only after the final head's CI is green (`gh pr checks --watch`), merge on final head only; `edited` no longer triggers CI/review on PRs (issue #49)](2026-10-30-copilot-review-request-never-produced-reviews.md) |
 | `2026-10-30` | [One CI workflow per pipeline — never duplicate the Gradle build across workflows; pass the verdict via `needs.<job>.result`, never re-run (issue #46)](2026-10-30-single-ci-workflow-no-duplicate-builds.md) |
 | `2026-10-30` | [Lessons log cleaned after the rule change: noise entries from the per-PR era removed, high-signal entries kept (issue #50 follow-up)](2026-10-30-lessons-log-cleanup-after-rule-change.md) |
 | `2026-10-30` | [Lessons are required only when non-obvious, not on every PR — a required-per-PR artifact becomes noise and buries the valuable entries (issue #50)](2026-10-30-lessons-only-when-non-obvious.md) |

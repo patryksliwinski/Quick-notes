@@ -50,7 +50,7 @@ fun deriveTitle(name: String, head: String): String {
 fun deriveSnippet(name: String, head: String): String {
     val lines = head.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList()
     val titleLine = lines.firstOrNull()?.trimStart('#')?.trim()
-    val body = lines.drop(1).firstOrNull { it != titleLine } ?: lines.firstOrNull() ?: ""
+    val body = lines.drop(1).firstOrNull { it != titleLine } ?: titleLine ?: ""
     return body.take(80)
 }
 

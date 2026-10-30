@@ -47,6 +47,7 @@ class NoteRepository(
     val storageName: StateFlow<String> = _storageName
     private val _errorMessage = MutableStateFlow<NoteError?>(null)
     val errorMessage: StateFlow<NoteError?> = _errorMessage
+    private var consecutiveEmptyListings = 0
 
     fun clearError() {
         _errorMessage.value = null
@@ -77,9 +78,32 @@ class NoteRepository(
             fromFallback = true
         }
         if (listed.isEmpty() && !fromFallback && resolved !is InternalNoteStore) {
+            if (_notes.value.isNotEmpty() && consecutiveEmptyListings == 0) {
+                consecutiveEmptyListings = 1
+                return@withContext
+            }
+            consecutiveEmptyListings++
             _errorMessage.value = NoteError.FolderUnavailable
+        } else {
+            consecutiveEmptyListings = 0
         }
+        publishEnriched(listed)
+    }
+
+    private suspend fun publishEnriched(listed: List<NoteMeta>) {
+        _notes.value = listed.map { placeholderHead(it) }
         _notes.value = enrichHeads(listed)
+    }
+
+    private fun placeholderHead(meta: NoteMeta): NoteMeta {
+        val cached = contentCache[HeadKey(meta.uri, meta.lastModified, meta.size)]
+        return if (cached != null) {
+            val fields = deriveHead(meta.name, cached.take(HEAD_BYTES))
+            meta.copy(title = fields.title, snippet = fields.snippet, content = cached)
+        } else {
+            val fields = deriveHead(meta.name, "")
+            meta.copy(title = fields.title, snippet = fields.snippet, content = "")
+        }
     }
 
     private suspend fun enrichHeads(listed: List<NoteMeta>): List<NoteMeta> {

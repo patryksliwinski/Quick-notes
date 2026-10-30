@@ -1,39 +1,23 @@
-## Summary
-- What changed and why (one or two bullets per area touched)
-
-## Type
-- [ ] Feature
-- [ ] Fix
-- [ ] Docs / workflow
-- [ ] Refactor
+## What & why
+- (2–3 bullets: what changed, why)
 
 ## Verification
-- [ ] `./gradlew testDebugUnitTest` green (paste result)
-- [ ] `./gradlew :app:koverVerifyDebug` green — coverage >= 80% line and branch (paste result)
-- [ ] `./gradlew assembleDebug` green, APK produced
-- [ ] `./gradlew lintDebug` adds no new warnings
-- [ ] Manual check on device/emulator (describe what you tried) — or N/A
+- [ ] `./gradlew testDebugUnitTest` run
+- [ ] `./gradlew :app:koverVerifyDebug` run — CI enforces the >= 80% line/branch gate
+- [ ] `./gradlew assembleDebug` run
+- [ ] `./gradlew lintDebug` adds no new warnings — CI enforces
+- Deviations from the above: (one line, or "none") — no pasted outputs, CI logs are the record
 
-## Golden rules check (from AGENTS.md)
+## Golden rules (only the ones machines can't check)
 - [ ] Quick path (widget/tile/`+` → new note → editor) untouched and still dialog-free
-- [ ] No disk/SAF I/O on the main thread; UI updates optimistic
-- [ ] List/search still render from the in-memory index, no per-keystroke file scans
 - [ ] Storage layer stays sync-agnostic (no Syncthing/conflict/trash logic)
 - [ ] Strings externalized; no hardcoded UI text
-- [ ] No new dependencies (or justification below)
 
-## Tests
-- [ ] Added/updated unit tests for new pure logic (`app/src/test/`)
-- [ ] Instrumented test added, or reason why not (SAF/device-only paths)
+## Lesson
+- (one line + a file under `docs/lessons/` if this PR taught something non-obvious; omit otherwise — rule-changing PRs always get one)
 
-## Lessons
-- [ ] Added a file under `docs/lessons/` (+ index row) describing what this PR taught us (required if any non-trivial decision was made)
-- [ ] Updated `AGENTS.md` / `docs/WORKFLOW.md` / `docs/ARCHITECTURE.md` if a rule changed (required if behavior contract changed)
-
-## Agent self-review
-- [ ] Agent reviewed its own diff against `AGENTS.md` and the checklist above
-- [ ] Review pushed as comments on this PR
-- [ ] All self-review comments addressed in follow-up commits (no human review step — the agent owns the review loop)
+## Self-review
+- [ ] Self-reviewed the diff against `AGENTS.md`; findings fixed in this branch (post them as PR comments only if there were actual findings)
 
 ## Screenshots / demo
 - Attach if UI changed

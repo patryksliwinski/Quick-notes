@@ -4,4 +4,4 @@
 - **Rule now:** AGENTS.md build/verify section includes `./gradlew lintDebug` as a required gate; CI runs it and fails on errors.
 
 ## Follow-up (same day)
-The `pr-review.yml` static grep flagged `Dispatchers.Main` as "main-thread I/O" even though the only use is a legitimate `withContext(Dispatchers.Main)` hop for a UI callback. Refined the check to allow that pattern while still catching `runBlocking`/`Thread.sleep`/bare `Dispatchers.Main` launches.
+The `pr.yml` static grep flagged `Dispatchers.Main` as "main-thread I/O" even though the only use is a legitimate `withContext(Dispatchers.Main)` hop for a UI callback. Refined the check to allow that pattern while still catching `runBlocking`/`Thread.sleep`/bare `Dispatchers.Main` launches.

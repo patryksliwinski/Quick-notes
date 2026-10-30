@@ -43,6 +43,7 @@ class NotesViewModelTest {
         viewModel = NotesViewModel(app)
         collectorScope = CoroutineScope(Dispatchers.Unconfined)
         collectorJob = collectorScope.launch { viewModel.notes.collect { } }
+        collectorScope.launch { viewModel.listRows.collect { } }
     }
 
     @After

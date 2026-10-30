@@ -236,9 +236,7 @@ class EditorViewModelTest {
             override fun displayName() = "failing"
         }
         val repo = com.patryksliwinski.quicknotes.data.NoteRepository(app) { store to false }
-        val field = EditorViewModel::class.java.getDeclaredField("repository")
-        field.isAccessible = true
-        field.set(viewModel, repo)
+        val viewModel = EditorViewModel(app, repo)
         val meta = NoteMeta("content://failing/doc1", "doc1.md", 0L, "doc1", "", size = 42L)
         viewModel.open(meta)
         waitFor { repo.errorMessage.value == com.patryksliwinski.quicknotes.data.NoteError.StorageError }

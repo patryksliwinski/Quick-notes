@@ -48,11 +48,17 @@ class SharedNoteRepositoryTest {
 
     @After
     fun tearDown() {
-        notesViewModel.onCleared()
-        editorViewModel.onCleared()
+        clearViewModel(notesViewModel)
+        clearViewModel(editorViewModel)
         collectorJob.cancel()
         collectorScope.cancel()
         Dispatchers.resetMain()
+    }
+
+    private fun clearViewModel(viewModel: androidx.lifecycle.ViewModel) {
+        val method = androidx.lifecycle.ViewModel::class.java.getDeclaredMethod("onCleared")
+        method.isAccessible = true
+        method.invoke(viewModel)
     }
 
     private fun waitFor(timeoutMs: Long = 5000, condition: () -> Boolean) {
@@ -86,8 +92,8 @@ class SharedNoteRepositoryTest {
         editorField.isAccessible = true
         assertSame(holderRepo, listField.get(listVm))
         assertSame(holderRepo, editorField.get(editorVm))
-        listVm.onCleared()
-        editorVm.onCleared()
+        clearViewModel(listVm)
+        clearViewModel(editorVm)
     }
 
     @Test

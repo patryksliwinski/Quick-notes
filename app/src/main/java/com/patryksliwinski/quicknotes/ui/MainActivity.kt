@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.patryksliwinski.quicknotes.data.NoteMeta
+import com.patryksliwinski.quicknotes.data.sharedTextFromIntent
 
 sealed interface Screen {
     data object List : Screen
@@ -34,22 +35,23 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (intent?.action == ACTION_OPEN_NOTE) {
-            intent.getStringExtra(EXTRA_NOTE_URI)?.let { pendingOpenNote = noteMetaFromUri(it) }
-        }
+        handleIncomingIntent(intent)
         setContent {
             QuickNotesTheme {
                 AppRoot(
                     notesViewModel,
                     handleNewNote = intent?.action == ACTION_NEW_NOTE ||
                         intent?.action == ACTION_OPEN_NOTE ||
-                        pendingNewNote != null || pendingOpenNote != null,
+                        intent?.action == Intent.ACTION_SEND ||
+                        pendingNewNote != null || pendingOpenNote != null || pendingSharedText != null,
                     pendingNote = pendingOpenNote ?: pendingNewNote,
+                    pendingSharedText = pendingSharedText,
                 ) { handled ->
                     if (handled) {
                         intent = intent?.setAction(null)
                         pendingNewNote = null
                         pendingOpenNote = null
+                        pendingSharedText = null
                     }
                 }
             }
@@ -59,7 +61,11 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        when (intent.action) {
+        handleIncomingIntent(intent)
+    }
+
+    private fun handleIncomingIntent(intent: Intent?) {
+        when (intent?.action) {
             ACTION_NEW_NOTE -> {
                 notesViewModel.createNote { note ->
                     // Posted to the main looper so Compose state is updated on the UI thread.
@@ -72,6 +78,12 @@ class MainActivity : ComponentActivity() {
                 val uri = intent.getStringExtra(EXTRA_NOTE_URI) ?: return
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
                     pendingOpenNote = noteMetaFromUri(uri)
+                }
+            }
+            Intent.ACTION_SEND -> {
+                val shared = sharedTextFromIntent(intent) ?: return
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    pendingSharedText = shared
                 }
             }
         }
@@ -90,6 +102,7 @@ class MainActivity : ComponentActivity() {
 
     private var pendingNewNote by mutableStateOf<NoteMeta?>(null)
     private var pendingOpenNote by mutableStateOf<NoteMeta?>(null)
+    private var pendingSharedText by mutableStateOf<String?>(null)
 
     override fun onResume() {
         super.onResume()
@@ -99,6 +112,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val ACTION_NEW_NOTE = "com.patryksliwinski.quicknotes.NEW_NOTE"
         const val ACTION_OPEN_NOTE = "com.patryksliwinski.quicknotes.OPEN_NOTE"
+        const val ACTION_SHARE_INTO_NOTE = "com.patryksliwinski.quicknotes.SHARE_INTO_NOTE"
         const val EXTRA_NOTE_URI = "com.patryksliwinski.quicknotes.extra.NOTE_URI"
     }
 }
@@ -122,23 +136,34 @@ fun AppRoot(
     notesViewModel: NotesViewModel,
     handleNewNote: Boolean,
     pendingNote: NoteMeta?,
+    pendingSharedText: String? = null,
     onHandled: (Boolean) -> Unit,
 ) {
     var screen by remember { mutableStateOf<Screen>(Screen.List) }
     val editorViewModel: EditorViewModel = viewModel()
 
-    LaunchedEffect(handleNewNote, pendingNote) {
-        if (!handleNewNote) return@LaunchedEffect
-        val note = pendingNote ?: run {
+    LaunchedEffect(handleNewNote, pendingNote, pendingSharedText) {
+        val note = pendingNote
+        val shared = pendingSharedText
+        if (!handleNewNote || (note == null && shared == null)) return@LaunchedEffect
+        if (note != null) {
+            editorViewModel.open(note)
+            screen = Screen.Editor(note)
+            onHandled(true)
+            return@LaunchedEffect
+        }
+        if (shared != null) {
             notesViewModel.createNote { created ->
-                editorViewModel.open(created)
+                editorViewModel.open(created, prefill = shared)
                 screen = Screen.Editor(created)
             }
             onHandled(true)
             return@LaunchedEffect
         }
-        editorViewModel.open(note)
-        screen = Screen.Editor(note)
+        notesViewModel.createNote { created ->
+            editorViewModel.open(created)
+            screen = Screen.Editor(created)
+        }
         onHandled(true)
     }
 
@@ -155,6 +180,10 @@ fun AppRoot(
             viewModel = editorViewModel,
             noteTitle = current.note.title,
             onBack = { screen = Screen.List },
+            onDuplicate = { note ->
+                editorViewModel.open(note)
+                screen = Screen.Editor(note)
+            },
         )
         Screen.Settings -> SettingsScreen(
             viewModel = notesViewModel,

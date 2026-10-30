@@ -14,6 +14,11 @@ class FailingNoteStore(
         return NoteMeta("content://failing/doc1", "doc1.md", 0L, "doc1", "")
     }
 
+    override suspend fun createNoteWithContent(content: String): NoteMeta {
+        if (failCreate) throw IllegalStateException("cannot create document")
+        return NoteMeta("content://failing/doc1", "doc1.md", 0L, "doc1", "")
+    }
+
     override suspend fun restoreNote(name: String, content: String): NoteMeta =
         throw IllegalStateException("cannot create document")
 

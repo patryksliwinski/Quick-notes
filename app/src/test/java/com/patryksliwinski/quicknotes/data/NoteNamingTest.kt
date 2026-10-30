@@ -43,11 +43,11 @@ class NoteNamingTest {
     @Test
     fun `deriveHead combines title and snippet derivation`() {
         val fields = deriveHead("x.md", "# Shopping\nbuy milk")
-        assertEquals(HeadFields(title = "Shopping", snippet = "buy milk"), fields)
+        assertEquals(HeadFields(title = "x", snippet = "buy milk"), fields)
     }
 
     @Test
-    fun `deriveHead on empty head falls back to file name`() {
+    fun `deriveHead on empty head keeps the file name as title`() {
         assertEquals(
             HeadFields(title = "20250101-120000-abcd", snippet = ""),
             deriveHead("20250101-120000-abcd.md", ""),
@@ -55,33 +55,18 @@ class NoteNamingTest {
     }
 
     @Test
-    fun `title derives from first markdown heading`() {
-        assertEquals("Shopping", deriveTitle("x.md", "# Shopping\n\nbuy milk"))
-    }
-
-    @Test
-    fun `title falls back to file name when empty`() {
+    fun `title is always the file name regardless of content`() {
+        assertEquals("x", deriveTitle("x.md", "# Shopping\n\nbuy milk"))
         assertEquals("20250101-120000-abcd", deriveTitle("20250101-120000-abcd.md", ""))
-    }
-
-    @Test
-    fun `title skips blank lines before first heading`() {
-        assertEquals("Ideas", deriveTitle("x.md", "\n   \n## Ideas\nbody"))
-    }
-
-    @Test
-    fun `title falls back to file name when heading is empty`() {
+        assertEquals("x", deriveTitle("x.md", "\n   \n## Ideas\nbody"))
         assertEquals("20250101-120000-abcd", deriveTitle("20250101-120000-abcd.md", "#   \nbody"))
-    }
-
-    @Test
-    fun `title strips multiple leading hashes and whitespace`() {
-        assertEquals("Deep", deriveTitle("x.md", "  ###   Deep  \nbody"))
-    }
-
-    @Test
-    fun `title falls back to file name for blank head`() {
+        assertEquals("x", deriveTitle("x.md", "  ###   Deep  \nbody"))
         assertEquals("20250101-120000-abcd", deriveTitle("20250101-120000-abcd.md", "   "))
+    }
+
+    @Test
+    fun `title ignores the head so the list never flips between file name and first line`() {
+        assertEquals(deriveTitle("20260101-000000-abcd.md", ""), deriveTitle("20260101-000000-abcd.md", "# Fresh title\nbody"))
     }
 
     @Test

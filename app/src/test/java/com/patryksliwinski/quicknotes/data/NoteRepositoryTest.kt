@@ -17,6 +17,7 @@ class NoteRepositoryTest {
 
     private val context get() = RuntimeEnvironment.getApplication()
     private lateinit var repository: NoteRepository
+    private val journal get() = PendingSaveJournal(context)
 
     @Before
     fun setUp() {
@@ -43,7 +44,7 @@ class NoteRepositoryTest {
         repository.refresh()
         val notes = repository.notes.first()
         assertEquals(2, notes.size)
-        assertEquals(setOf("One", "Two"), notes.map { it.title }.toSet())
+        assertEquals(notes.map { it.name.removeSuffix(".md") }.toSet(), notes.map { it.title }.toSet())
     }
 
     @Test
@@ -121,7 +122,7 @@ class NoteRepositoryTest {
         assertEquals(NoteError.FolderUnavailable, repo.errorMessage.first())
         assertTrue(repo.folderRevoked.first())
         assertEquals(listOf(meta.uri), repo.notes.first().map { it.uri })
-        assertEquals("Kept", repo.notes.first()[0].title)
+        assertEquals(meta.name.removeSuffix(".md"), repo.notes.first()[0].title)
     }
 
     @Test
@@ -172,7 +173,7 @@ class NoteRepositoryTest {
         repo.refresh()
         assertNull(repo.errorMessage.first())
         assertEquals(listOf(meta.uri), repo.notes.first().map { it.uri })
-        assertEquals("Kept", repo.notes.first()[0].title)
+        assertEquals(meta.name.removeSuffix(".md"), repo.notes.first()[0].title)
     }
 
     @Test
@@ -274,11 +275,11 @@ class NoteRepositoryTest {
         repository.writeNote(a.uri, "# Alpha\nbody a")
         val notes = repository.notes.first()
         val updated = notes.first { it.uri == a.uri }
-        assertEquals("Alpha", updated.title)
+        assertEquals(a.name.removeSuffix(".md"), updated.title)
         assertEquals("body a", updated.snippet)
         assertEquals(2, notes.size)
         val untouched = notes.first { it.uri == b.uri }
-        assertEquals("B", untouched.title)
+        assertEquals(b.name.removeSuffix(".md"), untouched.title)
         assertEquals("b", untouched.snippet)
     }
 
@@ -345,7 +346,7 @@ class NoteRepositoryTest {
         repository.restoreNote(meta, "# New\nnew")
         val notes = repository.notes.first()
         assertEquals(1, notes.size)
-        assertEquals("New", notes[0].title)
+        assertEquals(meta.name.removeSuffix(".md"), notes[0].title)
         assertEquals("new", notes[0].snippet)
         assertEquals("# New\nnew", repository.readNote(notes[0].uri).getOrThrow())
     }
@@ -361,7 +362,7 @@ class NoteRepositoryTest {
         val meta = repository.createNote("# Shared\nfrom another app")!!
         assertEquals("# Shared\nfrom another app", repository.readNote(meta.uri).getOrThrow())
         assertTrue(Regex("""\d{8}-\d{6}-[a-z0-9]{4}\.md""").matches(meta.name))
-        assertEquals("Shared", meta.title)
+        assertEquals(meta.name.removeSuffix(".md"), meta.title)
         assertEquals("from another app", meta.snippet)
         assertEquals(meta.uri, repository.notes.first().first().uri)
     }
@@ -391,7 +392,7 @@ class NoteRepositoryTest {
         assertEquals(readsAfterFirstRefresh, counting.fullReads.get())
         val notes = repo.notes.first()
         assertEquals(1, notes.size)
-        assertEquals("Cached", notes[0].title)
+        assertEquals(meta.name.removeSuffix(".md"), notes[0].title)
         assertEquals("body", notes[0].snippet)
         assertEquals("# Cached\nbody", notes[0].content)
     }
@@ -406,8 +407,8 @@ class NoteRepositoryTest {
         repo.writeNote(b.uri, "# B\nb")
         repo.refresh()
         val notesBefore = repo.notes.first()
-        assertEquals("A", notesBefore.first { it.uri == a.uri }.title)
-        assertEquals("B", notesBefore.first { it.uri == b.uri }.title)
+        assertEquals(a.name.removeSuffix(".md"), notesBefore.first { it.uri == a.uri }.title)
+        assertEquals(b.name.removeSuffix(".md"), notesBefore.first { it.uri == b.uri }.title)
         val before = counting.fullReads.get()
         repo.refresh()
         assertEquals(before, counting.fullReads.get())
@@ -415,8 +416,8 @@ class NoteRepositoryTest {
         repo.refresh()
         assertEquals(before + 1, counting.fullReads.get())
         val notes = repo.notes.first()
-        assertEquals("A", notes.first { it.uri == a.uri }.title)
-        assertEquals("B2", notes.first { it.uri == b.uri }.title)
+        assertEquals(a.name.removeSuffix(".md"), notes.first { it.uri == a.uri }.title)
+        assertEquals(b.name.removeSuffix(".md"), notes.first { it.uri == b.uri }.title)
         assertEquals("# B2\nb2 changed", notes.first { it.uri == b.uri }.content)
     }
 
@@ -438,7 +439,7 @@ class NoteRepositoryTest {
         repository.writeNote(a.uri, "# Alpha\nbody a")
         val notes = repository.notes.first()
         assertEquals(listOf(a.uri, c.uri, b.uri), notes.map { it.uri })
-        assertEquals("Alpha", notes[0].title)
+        assertEquals(a.name.removeSuffix(".md"), notes[0].title)
         assertEquals("body a", notes[0].snippet)
     }
 
@@ -455,7 +456,7 @@ class NoteRepositoryTest {
         repository.refresh()
         repository.writeNote(a.uri, "# Alpha\nbody a")
         assertEquals(listOf(b.uri, a.uri), repository.notes.first().map { it.uri })
-        assertEquals("Alpha", repository.notes.first().first { it.uri == a.uri }.title)
+        assertEquals(a.name.removeSuffix(".md"), repository.notes.first().first { it.uri == a.uri }.title)
     }
 
     @Test
@@ -494,7 +495,7 @@ class NoteRepositoryTest {
         fail = false
         repo.refresh()
         val notes = repo.notes.first()
-        assertEquals("Recovered", notes[0].title)
+        assertEquals(meta.name.removeSuffix(".md"), notes[0].title)
         assertEquals("body", notes[0].snippet)
         assertEquals("# Recovered\nbody", notes[0].content)
     }
@@ -517,7 +518,7 @@ class NoteRepositoryTest {
         returnEmpty = false
         repo.refresh()
         val notes = repo.notes.first()
-        assertEquals("Later", notes[0].title)
+        assertEquals(meta.name.removeSuffix(".md"), notes[0].title)
         assertEquals("body", notes[0].snippet)
         assertEquals("# Later\nbody", notes[0].content)
     }
@@ -609,6 +610,65 @@ class NoteRepositoryTest {
         repo.flushPendingSaves()
         assertEquals(listOf(PendingSave("content://failing/doc1", "keep me")), journal.pending())
         assertEquals(NoteError.StorageError, repo.errorMessage.first())
+    }
+
+
+    @Test
+    fun `refresh retains a note with a pending journaled save that the SD listing no longer shows`() = runTest {
+        val internal = InternalNoteStore(context.filesDir.resolve("notes"))
+        val hidden = java.util.Collections.synchronizedSet(HashSet<String>())
+        val store = object : NoteStore by internal {
+            override suspend fun listNotes(): List<NoteMeta> =
+                internal.listNotes().filter { it.name !in hidden }
+        }
+        val repo = NoteRepository(context) { store to false }
+        val meta = repo.createNote("# Vanishing\nbody")!!
+        val other = repo.createNote("# Other\nbody")!!
+        repo.refresh()
+        assertEquals(2, repo.notes.first().size)
+        hidden.add(meta.name)
+        journal.record(meta.uri, "# Vanishing\nbody edited")
+        repo.refresh()
+        val notes = repo.notes.first()
+        assertEquals(setOf(meta.uri, other.uri), notes.map { it.uri }.toSet())
+        val retainedNote = notes.first { it.uri == meta.uri }
+        assertEquals("# Vanishing\nbody edited", retainedNote.content)
+        hidden.remove(meta.name)
+        repo.refresh()
+        assertEquals(setOf(meta.uri, other.uri), repo.notes.first().map { it.uri }.toSet())
+    }
+
+    @Test
+    fun `refresh does not duplicate a pending note that the listing still shows`() = runTest {
+        val internal = InternalNoteStore(context.filesDir.resolve("notes"))
+        val repo = NoteRepository(context) { internal to false }
+        val meta = repo.createNote("# Dup\nbody")!!
+        journal.record(meta.uri, "content")
+        repo.refresh()
+        repo.refresh()
+        assertEquals(1, repo.notes.first().size)
+        assertEquals(listOf(meta.uri), repo.notes.first().map { it.uri })
+    }
+
+    @Test
+    fun `refresh drops a note missing from the listing once its save is no longer pending`() = runTest {
+        val internal = InternalNoteStore(context.filesDir.resolve("notes"))
+        val hidden = java.util.Collections.synchronizedSet(HashSet<String>())
+        val store = object : NoteStore by internal {
+            override suspend fun listNotes(): List<NoteMeta> =
+                internal.listNotes().filter { it.name !in hidden }
+        }
+        val repo = NoteRepository(context) { store to false }
+        val meta = repo.createNote()!!
+        val other = repo.createNote()!!
+        repo.refresh()
+        hidden.add(meta.name)
+        journal.record(meta.uri, "content")
+        repo.refresh()
+        assertEquals(setOf(meta.uri, other.uri), repo.notes.first().map { it.uri }.toSet())
+        journal.clear(meta.uri)
+        repo.refresh()
+        assertEquals(listOf(other.uri), repo.notes.first().map { it.uri })
     }
 
     private class CountingNoteStore(dir: java.io.File) : NoteStore {

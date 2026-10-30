@@ -86,7 +86,7 @@ class InternalNoteStoreTest {
         assertEquals("", notes[0].snippet)
         assertEquals("# Shopping\nbuy milk".length.toLong(), notes[0].size)
         val fields = deriveHead(notes[0].name, store.readHead(notes[0].uri))
-        assertEquals("Shopping", fields.title)
+        assertEquals("20250101-120000-abcd", fields.title)
         assertEquals("buy milk", fields.snippet)
     }
 
@@ -122,7 +122,7 @@ class InternalNoteStoreTest {
         val notes = store.listNotes()
         assertEquals(1, notes.size)
         val fields = deriveHead(notes[0].name, store.readHead(notes[0].uri))
-        assertEquals("Synced", fields.title)
+        assertEquals("20250101-090000-sync", fields.title)
         assertEquals("from git", fields.snippet)
     }
 

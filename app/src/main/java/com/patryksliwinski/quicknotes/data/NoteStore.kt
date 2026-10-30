@@ -4,12 +4,15 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.io.InputStream
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 
 data class NoteMeta(
@@ -53,14 +56,8 @@ fun newNoteFileName(): String {
     return "$ts-$suffix.md"
 }
 
-fun deriveTitle(name: String, head: String): String {
-    val firstLine = head.lineSequence()
-        .map { it.trim() }
-        .firstOrNull { it.isNotEmpty() }
-        ?: return name.removeSuffix(".md")
-    val stripped = firstLine.trimStart('#').trim()
-    return if (stripped.isNotEmpty()) stripped else name.removeSuffix(".md")
-}
+fun deriveTitle(name: String, @Suppress("UNUSED_PARAMETER") head: String): String =
+    name.removeSuffix(".md")
 
 fun deriveSnippet(name: String, head: String): String {
     val lines = head.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList()
@@ -214,12 +211,18 @@ fun healOrphanedNoteFiles(dir: File) {
     }
 }
 
+private val safMutationMutexes = ConcurrentHashMap<String, Mutex>()
+
+internal fun mutationMutexFor(treeUri: String): Mutex =
+    safMutationMutexes.computeIfAbsent(treeUri) { Mutex() }
+
 class SafNoteStore(
     private val context: Context,
     private val treeUri: Uri,
 ) : NoteStore {
 
     private val resolver get() = context.contentResolver
+    private val mutationMutex = mutationMutexFor(treeUri.toString())
     private val childrenUri: Uri
         get() = DocumentsContract.buildChildDocumentsUriUsingTree(
             treeUri, DocumentsContract.getTreeDocumentId(treeUri)
@@ -227,7 +230,11 @@ class SafNoteStore(
     private val parentDocumentUri: Uri
         get() = parentDocumentUriOf(treeUri)
 
-    override suspend fun listNotes(): List<NoteMeta> {
+    override suspend fun listNotes(): List<NoteMeta> = mutationMutex.withLock {
+        listNotesLocked()
+    }
+
+    private suspend fun listNotesLocked(): List<NoteMeta> {
         healOrphanedSafDocuments()
         val projection = arrayOf(
             DocumentsContract.Document.COLUMN_DOCUMENT_ID,
@@ -304,13 +311,11 @@ class SafNoteStore(
         return createNoteWithContent("")
     }
 
-    override suspend fun createNoteWithContent(content: String): NoteMeta {
-        return createWithName(newNoteFileName(), content)
-    }
+    override suspend fun createNoteWithContent(content: String): NoteMeta =
+        mutationMutex.withLock { createWithName(newNoteFileName(), content) }
 
-    override suspend fun restoreNote(name: String, content: String): NoteMeta {
-        return createWithName(name, content)
-    }
+    override suspend fun restoreNote(name: String, content: String): NoteMeta =
+        mutationMutex.withLock { createWithName(name, content) }
 
     private suspend fun createWithName(name: String, content: String): NoteMeta {
         val uri = DocumentsContract.createDocument(resolver, parentDocumentUri, "text/markdown", name)
@@ -343,7 +348,9 @@ class SafNoteStore(
             ?: throw java.io.IOException("Note document unavailable (volume unmounted or permission lost): $docUri")
 
     override suspend fun writeNote(uri: String, content: String) {
-        writeText(Uri.parse(uri), content)
+        mutationMutex.withLock {
+            writeText(Uri.parse(uri), content)
+        }
     }
 
     private fun documentDisplayName(uri: Uri): String? {
@@ -388,7 +395,9 @@ class SafNoteStore(
     }
 
     override suspend fun deleteNote(uri: String) {
-        DocumentsContract.deleteDocument(resolver, Uri.parse(uri))
+        mutationMutex.withLock {
+            DocumentsContract.deleteDocument(resolver, Uri.parse(uri))
+        }
     }
 
     override fun displayName(): String {

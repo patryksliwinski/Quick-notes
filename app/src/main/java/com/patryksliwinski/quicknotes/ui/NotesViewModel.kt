@@ -64,10 +64,23 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     val deleteEvents: SharedFlow<NoteMeta?> = _deleteEvents.asSharedFlow()
 
     private var refreshJob: Job? = null
+    private var refreshQueued = false
 
     fun refresh() {
-        if (refreshJob?.isActive == true) return
-        refreshJob = viewModelScope.launch { repository.refresh() }
+        if (refreshJob?.isActive == true) {
+            refreshQueued = true
+            return
+        }
+        refreshJob = viewModelScope.launch {
+            try {
+                repository.refresh()
+            } finally {
+                if (refreshQueued) {
+                    refreshQueued = false
+                    repository.refresh()
+                }
+            }
+        }
     }
 
     fun onQueryChange(q: String) {

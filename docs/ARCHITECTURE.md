@@ -5,11 +5,11 @@
 ```
 app/src/main/java/com/patryksliwinski/quicknotes/
 ├── data/
-│   ├── NoteStore.kt        # NoteStore interface + InternalNoteStore + SafNoteStore, folder prefs, filename/title helpers
+│   ├── NoteStore.kt        # NoteStore interface + InternalNoteStore + SafNoteStore, folder prefs, filename/title helpers; ShareIntentText.kt extracts shared text from ACTION_SEND
 │   ├── NoteRepository.kt   # single source of truth: in-memory StateFlow<List<NoteMeta>>, optimistic mutations
 │   └── EditorPrefs.kt      # editor font size / autosave debounce / theme in SharedPreferences (reads off the main thread)
 ├── ui/
-│   ├── MainActivity.kt     # single activity, screen state machine (List / Editor / Settings), ACTION_NEW_NOTE / ACTION_OPEN_NOTE
+│   ├── MainActivity.kt     # single activity, screen state machine (List / Editor / Settings), ACTION_NEW_NOTE / ACTION_OPEN_NOTE / ACTION_SEND (share into new note)
 │   ├── NotesListScreen.kt  # search field + LazyColumn + swipe-to-delete + undo snackbar
 │   ├── NotesViewModel.kt
 │   ├── EditorScreen.kt     # monospace TextField, debounced autosave, undo/redo + overflow (timestamp/share/copy), word-count status line
@@ -29,7 +29,7 @@ app/src/main/java/com/patryksliwinski/quicknotes/
 
 1. `NoteRepository.refresh()` resolves the active `NoteStore` (SAF tree if a persisted writable URI permission exists, else internal dir) and loads `List<NoteMeta>` (uri, name, mtime, title, snippet) into a `StateFlow`.
 2. The list screen renders from that flow; search/sort/day-grouping/count are pure `combine()` transforms over it (`data/NoteListLogic.kt`) — no disk access. Sort order and confirm-before-delete are UI prefs in `ListPrefs` (same SharedPreferences file as the folder URI).
-3. Create: optimistic insert into the flow + background `store.createNote()` (empty file). Editor opens immediately.
+3. Create: optimistic insert into the flow + background `store.createNote()` (empty file; `createNoteWithContent(content)` for share/duplicate — a single write, no read-modify-write). Editor opens immediately. Share (`ACTION_SEND` → `EXTRA_TEXT`/`EXTRA_STREAM`) and the launcher static shortcut (`res/xml/shortcuts.xml` → `ACTION_NEW_NOTE`) both create a new note; shared text prefills the editor through the debounced autosave.
 4. Edit: `EditorViewModel.onContentChange` debounces (400 ms default, configurable in Settings), then `repository.writeNote` on `Dispatchers.IO`; the flow entry's title/snippet/mtime update optimistically in-memory. Undo/redo snapshots are kept in a capped in-memory `UndoStack` (snapshot per debounced save, ≤50) — never on disk; word/char count is a pure derivation over the same `content` flow.
 5. Delete: remove from flow instantly, delete the document on `Dispatchers.IO`, keep the last deleted note for one-tap undo (restores the file with original content).
 6. `onResume` re-runs `refresh()` — this is how externally synced changes appear (no FileObserver on SAF paths).

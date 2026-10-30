@@ -51,7 +51,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     private var lastSaved: String = ""
     private var restoring = false
 
-    fun open(meta: NoteMeta) {
+    fun open(meta: NoteMeta, prefill: String? = null) {
         if (noteUri == meta.uri && _content.value.isNotEmpty()) return
         noteUri = meta.uri
         saveJob?.cancel()
@@ -60,14 +60,28 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         lastSaved = ""
         restoring = false
         syncUndoFlags()
-        viewModelScope.launch {
-            val text = repository.readNote(meta.uri)
-            _content.value = text
-            lastSaved = text
-            _saveState.value = SaveState.Saved
-            _fontSizeSp.value = withContext(Dispatchers.IO) {
-                EditorPrefs.loadFontSizeSp(getApplication())
+        if (prefill != null) {
+            onContentChange(prefill)
+        } else {
+            viewModelScope.launch {
+                val text = repository.readNote(meta.uri)
+                _content.value = text
+                lastSaved = text
+                _saveState.value = SaveState.Saved
+                _fontSizeSp.value = withContext(Dispatchers.IO) {
+                    EditorPrefs.loadFontSizeSp(getApplication())
+                }
             }
+        }
+    }
+
+    fun duplicate(onDuplicated: (NoteMeta) -> Unit) {
+        if (noteUri == null) return
+        val content = _content.value
+        saveJob?.cancel()
+        viewModelScope.launch {
+            val note = repository.createNote(content) ?: return@launch
+            onDuplicated(note)
         }
     }
 

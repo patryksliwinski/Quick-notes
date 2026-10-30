@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="new_note"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_new_note">
+        <intent
+            android:action="com.patryksliwinski.quicknotes.NEW_NOTE"
+            android:targetPackage="com.patryksliwinski.quicknotes"
+            android:targetClass="com.patryksliwinski.quicknotes.ui.MainActivity" />
+    </shortcut>
+</shortcuts>

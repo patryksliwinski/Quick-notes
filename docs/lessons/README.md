@@ -6,6 +6,7 @@ Self-improving log for this repo.
 
 | Date | Lesson | File |
 |---|---|---|
+| `2026-10-30` | [Inbound quick capture (share/shortcut/duplicate) reuses optimistic create + debounced prefill; never pair prefill with an async read of the new empty file (issue #31)](2026-10-30-inbound-quick-capture-share-shortcut-duplicate.md) |
 | `2026-10-30` | [List upgrades (sort/day groups/count/filename search/confirm-delete) are pure functions over the in-memory `NoteMeta` index; day grouping uses a LinkedHashMap so headers don't fragment under non-chronological sort (issue #33)](2026-10-30-list-upgrades-stay-in-memory-index.md) |
 | `2026-10-30` | [UI polish is a resource-level pass: externalize all strings + content descriptions, dark theme needs both Compose `colorScheme` and a `values-night` window theme (issue #28)](2026-10-30-ui-polish-issue-28.md) |
 | `2026-10-30` | [Widget rows must not rely on `0dp`+`layout_weight` when sibling rows are GONE — visible rows collapse to zero height and content becomes invisible; always bind every row slot and read height via both min/max options (issue #34)](2026-10-30-widget-rows-must-not-rely-on-weight.md) |

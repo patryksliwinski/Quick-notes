@@ -51,12 +51,14 @@ class NoteRepository(
         }
     }
 
-    suspend fun createNote(): NoteMeta? = withContext(Dispatchers.IO) {
+    suspend fun createNote(): NoteMeta? = createNote("")
+
+    suspend fun createNote(content: String): NoteMeta? = withContext(Dispatchers.IO) {
         val note = try {
-            store.createNote()
+            store.createNoteWithContent(content)
         } catch (e: Exception) {
             _errorMessage.value = NoteError.CreateFailed
-            recover(store) { it.createNote() }
+            recover(store) { it.createNoteWithContent(content) }
         }
         if (note == null) return@withContext null
         _notes.value = listOf(note) + _notes.value

@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.patryksliwinski.quicknotes.R
+import com.patryksliwinski.quicknotes.data.NoteMeta
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +49,7 @@ fun EditorScreen(
     viewModel: EditorViewModel,
     noteTitle: String,
     onBack: () -> Unit,
+    onDuplicate: (NoteMeta) -> Unit = {},
 ) {
     val context = LocalContext.current
     val content by viewModel.content.collectAsState()
@@ -56,7 +58,7 @@ fun EditorScreen(
     val canUndo by viewModel.canUndo.collectAsState()
     val canRedo by viewModel.canRedo.collectAsState()
     val fontSizeSp by viewModel.fontSizeSp.collectAsState()
-    var menuOpen by remember { mutableStateOf(false) }
+    var menuExpanded by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
         onDispose { viewModel.saveNow() }
@@ -107,27 +109,34 @@ fun EditorScreen(
                             contentDescription = stringResource(R.string.redo),
                         )
                     }
-                    IconButton(onClick = { menuOpen = true }) {
+                    IconButton(onClick = { menuExpanded = true }) {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
                             contentDescription = stringResource(R.string.more_actions),
                         )
                     }
                     DropdownMenu(
-                        expanded = menuOpen,
-                        onDismissRequest = { menuOpen = false },
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
                     ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.action_duplicate_note)) },
+                            onClick = {
+                                menuExpanded = false
+                                viewModel.duplicate(onDuplicate)
+                            },
+                        )
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.insert_timestamp)) },
                             onClick = {
-                                menuOpen = false
+                                menuExpanded = false
                                 viewModel.insertTimestamp()
                             },
                         )
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.share_note)) },
                             onClick = {
-                                menuOpen = false
+                                menuExpanded = false
                                 val intent = Intent(Intent.ACTION_SEND).apply {
                                     type = "text/markdown"
                                     putExtra(Intent.EXTRA_TEXT, content)
@@ -140,7 +149,7 @@ fun EditorScreen(
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.copy_note)) },
                             onClick = {
-                                menuOpen = false
+                                menuExpanded = false
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE)
                                     as ClipboardManager
                                 clipboard.setPrimaryClip(ClipData.newPlainText(noteTitle, content))

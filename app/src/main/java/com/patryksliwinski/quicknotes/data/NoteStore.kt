@@ -22,6 +22,7 @@ data class NoteMeta(
 interface NoteStore {
     suspend fun listNotes(): List<NoteMeta>
     suspend fun createNote(): NoteMeta
+    suspend fun createNoteWithContent(content: String): NoteMeta
     suspend fun restoreNote(name: String, content: String): NoteMeta
     suspend fun readNote(uri: String): String
     suspend fun writeNote(uri: String, content: String)
@@ -97,9 +98,20 @@ class InternalNoteStore(private val dir: File) : NoteStore {
     }
 
     override suspend fun createNote(): NoteMeta {
+        return createNoteWithContent("")
+    }
+
+    override suspend fun createNoteWithContent(content: String): NoteMeta {
         val file = File(dir, newNoteFileName())
-        file.writeText("")
-        return NoteMeta(file.toURI().toString(), file.name, file.lastModified(), file.name.removeSuffix(".md"), "")
+        file.writeText(content)
+        val head = content.take(4096)
+        return NoteMeta(
+            uri = file.toURI().toString(),
+            name = file.name,
+            lastModified = file.lastModified(),
+            title = deriveTitle(file.name, head),
+            snippet = deriveSnippet(file.name, head),
+        )
     }
 
     override suspend fun restoreNote(name: String, content: String): NoteMeta {
@@ -172,7 +184,11 @@ class SafNoteStore(
     }
 
     override suspend fun createNote(): NoteMeta {
-        return createWithName(newNoteFileName(), "")
+        return createNoteWithContent("")
+    }
+
+    override suspend fun createNoteWithContent(content: String): NoteMeta {
+        return createWithName(newNoteFileName(), content)
     }
 
     override suspend fun restoreNote(name: String, content: String): NoteMeta {

@@ -180,6 +180,7 @@ class NoteRepositoryTest {
         val failing = object : NoteStore {
             override suspend fun listNotes() = emptyList<NoteMeta>()
             override suspend fun createNote(): NoteMeta = throw UnsupportedOperationException()
+            override suspend fun createNoteWithContent(content: String): NoteMeta = throw UnsupportedOperationException()
             override suspend fun restoreNote(name: String, content: String): NoteMeta = throw UnsupportedOperationException()
             override suspend fun readNote(uri: String) = ""
             override suspend fun writeNote(uri: String, content: String) {}
@@ -215,5 +216,26 @@ class NoteRepositoryTest {
     fun `storageName is set after refresh`() = runTest {
         repository.refresh()
         assertEquals("App-private storage", repository.storageName.first())
+    }
+
+    @Test
+    fun `createNote with content writes the content and derives title in one write`() = runTest {
+        val meta = repository.createNote("# Shared\nfrom another app")!!
+        assertEquals("# Shared\nfrom another app", repository.readNote(meta.uri))
+        assertTrue(Regex("""\d{8}-\d{6}-[a-z0-9]{4}\.md""").matches(meta.name))
+        assertEquals("Shared", meta.title)
+        assertEquals("from another app", meta.snippet)
+        assertEquals(meta.uri, repository.notes.first().first().uri)
+    }
+
+    @Test
+    fun `createNote with content falls back to internal storage when SAF create fails`() = runTest {
+        val repo = NoteRepository(context) { FailingNoteStore(failCreate = true) to false }
+        repo.refresh()
+        val meta = repo.createNote("shared text")
+        assertTrue(meta != null)
+        assertTrue(meta!!.uri.startsWith("file:"))
+        assertEquals("shared text", repo.readNote(meta.uri))
+        assertTrue(repo.folderRevoked.first())
     }
 }

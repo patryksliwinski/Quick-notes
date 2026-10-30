@@ -12,6 +12,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -282,5 +283,40 @@ class EditorViewModelTest {
         waitFor(timeoutMs = 5000) {
             viewModel.saveState.value == SaveState.Saved && fileOf(meta).readText() == "now"
         }
+    }
+
+    @Test
+    fun `open with prefill sets content immediately and autosaves it`() {
+        val meta = seed("")
+        viewModel.open(meta, prefill = "shared from another app")
+        assertEquals("shared from another app", viewModel.content.value)
+        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "shared from another app" }
+    }
+
+    @Test
+    fun `open with prefill does not overwrite with a blocking read of the empty file`() {
+        val meta = seed("")
+        viewModel.open(meta, prefill = "prefilled")
+        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "prefilled" }
+        assertEquals("prefilled", viewModel.content.value)
+    }
+
+    @Test
+    fun `duplicate creates a distinct note with the current content`() {
+        val original = seed("# Original\nbody")
+        viewModel.open(original)
+        waitFor { viewModel.content.value == "# Original\nbody" }
+        var duplicated: NoteMeta? = null
+        viewModel.duplicate { duplicated = it }
+        waitFor { duplicated != null }
+        assertTrue(duplicated!!.uri != original.uri)
+        assertTrue(Regex("""\d{8}-\d{6}-[a-z0-9]{4}\.md""").matches(duplicated!!.name))
+        waitFor(timeoutMs = 5000) { fileOf(duplicated!!).readText() == "# Original\nbody" }
+        assertEquals("# Original\nbody", fileOf(original).readText())
+    }
+
+    @Test
+    fun `duplicate without an open note does not crash`() {
+        viewModel.duplicate { fail("should not be called without an open note") }
     }
 }

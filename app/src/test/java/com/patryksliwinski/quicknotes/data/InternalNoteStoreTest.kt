@@ -41,6 +41,26 @@ class InternalNoteStoreTest {
     }
 
     @Test
+    fun `createNoteWithContent writes content under a fresh timestamped name and derives title`() = runTest {
+        val meta = store.createNoteWithContent("# Copied\nhello")
+        assertTrue(Regex("""\d{8}-\d{6}-[a-z0-9]{4}\.md""").matches(meta.name))
+        val file = java.io.File(java.net.URI(meta.uri))
+        assertTrue(file.isFile)
+        assertEquals("# Copied\nhello", file.readText())
+        assertEquals("Copied", meta.title)
+        assertEquals("hello", meta.snippet)
+    }
+
+    @Test
+    fun `createNoteWithContent twice produces distinct files both holding their content`() = runTest {
+        val a = store.createNoteWithContent("first")
+        val b = store.createNoteWithContent("second")
+        assertTrue(a.uri != b.uri)
+        assertEquals("first", java.io.File(java.net.URI(a.uri)).readText())
+        assertEquals("second", java.io.File(java.net.URI(b.uri)).readText())
+    }
+
+    @Test
     fun `listNotes returns md files sorted by last modified desc, ignoring dotfiles and non-md`() = runTest {
         val old = store.createNote()
         java.io.File(java.net.URI(old.uri)).setLastModified(1000)

@@ -90,8 +90,9 @@ class NoteRepository(
         val retained = recentlyMutated()
         val retainedUris = retained.map { it.uri }.toSet()
         val refreshedListed = listed.filter { it.uri !in retainedUris }
-        _notes.value = (retained + refreshedListed).map { placeholderHead(it) }
-        _notes.value = retained + enrichHeads(refreshedListed)
+        val previous = _notes.value.associateBy { it.uri }
+        _notes.value = (retained + refreshedListed).map { placeholderHead(it, previous[it.uri]) }
+        _notes.value = retained + enrichHeads(refreshedListed, previous)
     }
 
     private fun recentlyMutated(): List<NoteMeta> {
@@ -109,23 +110,20 @@ class NoteRepository(
         }
     }
 
-    private suspend fun publishEnriched(listed: List<NoteMeta>) {
-        _notes.value = listed.map { placeholderHead(it) }
-        _notes.value = enrichHeads(listed)
-    }
-
-    private fun placeholderHead(meta: NoteMeta): NoteMeta {
+    private fun placeholderHead(meta: NoteMeta, prior: NoteMeta?): NoteMeta {
         val cached = contentCache[HeadKey(meta.uri, meta.lastModified, meta.size)]
-        return if (cached != null) {
+        if (cached != null) {
             val fields = deriveHead(meta.name, cached.take(HEAD_BYTES))
-            meta.copy(title = fields.title, snippet = fields.snippet, content = cached)
-        } else {
-            val fields = deriveHead(meta.name, "")
-            meta.copy(title = fields.title, snippet = fields.snippet, content = "")
+            return meta.copy(title = fields.title, snippet = fields.snippet, content = cached)
         }
+        if (prior != null && prior.content.isNotEmpty()) {
+            return meta.copy(title = prior.title, snippet = prior.snippet, content = prior.content)
+        }
+        val fields = deriveHead(meta.name, "")
+        return meta.copy(title = fields.title, snippet = fields.snippet, content = "")
     }
 
-    private suspend fun enrichHeads(listed: List<NoteMeta>): List<NoteMeta> {
+    private suspend fun enrichHeads(listed: List<NoteMeta>, previous: Map<String, NoteMeta>): List<NoteMeta> {
         val nextHeads = HashMap<HeadKey, HeadFields>(listed.size * 2)
         val nextContents = HashMap<HeadKey, String>(listed.size * 2)
         val enriched = listed.map { meta ->
@@ -154,9 +152,15 @@ class NoteRepository(
                     fields = derived
                     content = full
                 } else {
-                    val derived = deriveHead(meta.name, "")
-                    fields = derived
-                    content = ""
+                    val prior = previous[meta.uri]
+                    if (prior != null && prior.content.isNotEmpty()) {
+                        fields = HeadFields(prior.title, prior.snippet)
+                        content = prior.content
+                    } else {
+                        val derived = deriveHead(meta.name, "")
+                        fields = derived
+                        content = ""
+                    }
                 }
             }
             meta.copy(title = fields.title, snippet = fields.snippet, content = content)

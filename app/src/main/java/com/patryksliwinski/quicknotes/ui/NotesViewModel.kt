@@ -29,7 +29,11 @@ import kotlinx.coroutines.Dispatchers
 
 class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
-    private var repository = NoteRepository(application)
+    constructor(application: Application, repository: NoteRepository) : this(application) {
+        this.repository = repository
+    }
+
+    private var repository = NoteRepositoryHolder.get(application)
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query

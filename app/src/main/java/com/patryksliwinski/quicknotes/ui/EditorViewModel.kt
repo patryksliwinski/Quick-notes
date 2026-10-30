@@ -18,7 +18,11 @@ enum class SaveState {
 
 class EditorViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository = NoteRepository(application)
+    constructor(application: Application, repository: NoteRepository) : this(application) {
+        this.repository = repository
+    }
+
+    private var repository = NoteRepositoryHolder.get(application)
 
     private val _content = MutableStateFlow("")
     val content: StateFlow<String> = _content

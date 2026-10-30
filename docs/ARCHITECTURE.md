@@ -13,6 +13,7 @@ app/src/main/java/com/patryksliwinski/quicknotes/
 │   ├── NotesViewModel.kt
 │   ├── EditorScreen.kt     # monospace TextField, debounced autosave
 │   ├── EditorViewModel.kt  # 400 ms debounce, saveNow() on dispose/back
+│   ├─ NoteRepositoryHolder.kt # process-wide singleton: both ViewModels share one NoteRepository (issue #57)
 │   └── SettingsScreen.kt   # SAF folder picker (ACTION_OPEN_DOCUMENT_TREE + persisted URI permission)
 ├── receiver/
 │   ├── BaseWidgetProvider.kt   # abstract AppWidgetProvider: builds RemoteViews, applies shared widget_background, attaches PendingIntents, pushes updates
@@ -24,6 +25,11 @@ app/src/main/java/com/patryksliwinski/quicknotes/
 
 ## Data flow
 
+0. One `NoteRepository` per process: `NoteRepositoryHolder.get(application)` is the default constructor
+   argument of both `NotesViewModel` and `EditorViewModel`, so the list screen and the editor observe and
+   mutate the **same** `StateFlow<List<NoteMeta>>` — editor-side create/write/delete reach the list without
+   waiting for an `onResume` refresh (issue #57). Tests inject a shared instance via the constructor
+   parameter.
 1. `NoteRepository.refresh()` resolves the active `NoteStore` (SAF tree if a persisted writable URI permission exists, else internal dir) and loads `List<NoteMeta>` (uri, name, mtime, size) into a `StateFlow`. Title/snippet come from `store.readHead(uri)` (first 4 KiB) via a repository-side cache keyed by `(uri, lastModified, size)` — a refresh re-reads heads only for files that changed since the last scan, so SAF folders pay one `query()` per refresh instead of one `openInputStream` per note. Only successfully read non-empty heads are cached: a failed or empty head read falls back to the file name for that refresh only, so a later refresh (e.g. once an SD card is readable again) recovers the real title/snippet. Snippet derivation never duplicates the title — a note with no body line distinct from its title gets an empty snippet.
 2. The list screen renders from that flow; search/sort/day-grouping/count are pure `combine()` transforms over it (`data/NoteListLogic.kt`, `data/NoteSearch.kt`) — search matches against lowercase forms computed once per list change, no disk access. Sort order and confirm-before-delete are UI prefs in `ListPrefs` (same SharedPreferences file as the folder URI).
 3. Create: optimistic insert into the flow + background `store.createNote()` (empty file; `createNoteWithContent(content)` for share/duplicate — a single write, no read-modify-write). Editor opens immediately. Share (`ACTION_SEND` → `EXTRA_TEXT`/`EXTRA_STREAM`) and the launcher static shortcut (`res/xml/shortcuts.xml` → `ACTION_NEW_NOTE`) both create a new note; shared text prefills the editor through the debounced autosave.

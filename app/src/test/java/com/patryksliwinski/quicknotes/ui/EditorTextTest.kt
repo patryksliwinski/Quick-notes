@@ -20,7 +20,7 @@ class EditorTextTest {
     fun `computeStats counts whitespace-separated words`() {
         val stats = computeStats("one two  three\nfour")
         assertEquals(4, stats.words)
-        assertEquals(21, stats.characters)
+        assertEquals(19, stats.characters)
     }
 
     @Test

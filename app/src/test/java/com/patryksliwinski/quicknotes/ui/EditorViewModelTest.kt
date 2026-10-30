@@ -189,6 +189,7 @@ class EditorViewModelTest {
         waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "typed text" }
         viewModel.undo()
         waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "" }
+        waitFor { viewModel.content.value == "" }
         viewModel.redo()
         assertEquals("typed text", viewModel.content.value)
         assertTrue(viewModel.canUndo.value)

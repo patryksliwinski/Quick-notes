@@ -154,6 +154,31 @@ class NoteRepositoryTest {
     }
 
     @Test
+    fun `refresh placeholder keeps the prior head while content is re-read`() = runTest {
+        val internal = InternalNoteStore(context.filesDir.resolve("notes"))
+        val seenPlaceholders = mutableListOf<NoteMeta>()
+        lateinit var repo: NoteRepository
+        val observing = object : NoteStore by internal {
+            override suspend fun readNote(uri: String): String {
+                seenPlaceholders.addAll(repo.notes.value)
+                return internal.readNote(uri)
+            }
+        }
+        repo = NoteRepository(context) { observing to false }
+        repo.createNote("# Edited\nfresh body")
+        repo.refresh()
+        val file = java.io.File(java.net.URI(repo.notes.first().first().uri))
+        file.setLastModified(file.lastModified() + 5000L)
+        repo.refresh()
+        assertTrue(seenPlaceholders.isNotEmpty())
+        for (placeholder in seenPlaceholders) {
+            assertEquals("Edited", placeholder.title)
+            assertEquals("fresh body", placeholder.snippet)
+            assertEquals("# Edited\nfresh body", placeholder.content)
+        }
+    }
+
+    @Test
     fun `a transient zero-row SAF listing keeps the last known list without an error`() = runTest {
         var empty = false
         val internal = InternalNoteStore(context.filesDir.resolve("notes"))

@@ -91,19 +91,22 @@ class NoteRepository(
     }
 
     private suspend fun publishEnriched(listed: List<NoteMeta>) {
-        _notes.value = listed.map { placeholderHead(it) }
+        val previous = _notes.value.associateBy { it.uri }
+        _notes.value = listed.map { placeholderHead(it, previous[it.uri]) }
         _notes.value = enrichHeads(listed)
     }
 
-    private fun placeholderHead(meta: NoteMeta): NoteMeta {
+    private fun placeholderHead(meta: NoteMeta, prior: NoteMeta?): NoteMeta {
         val cached = contentCache[HeadKey(meta.uri, meta.lastModified, meta.size)]
-        return if (cached != null) {
+        if (cached != null) {
             val fields = deriveHead(meta.name, cached.take(HEAD_BYTES))
-            meta.copy(title = fields.title, snippet = fields.snippet, content = cached)
-        } else {
-            val fields = deriveHead(meta.name, "")
-            meta.copy(title = fields.title, snippet = fields.snippet, content = "")
+            return meta.copy(title = fields.title, snippet = fields.snippet, content = cached)
         }
+        if (prior != null && prior.content.isNotEmpty()) {
+            return meta.copy(title = prior.title, snippet = prior.snippet, content = prior.content)
+        }
+        val fields = deriveHead(meta.name, "")
+        return meta.copy(title = fields.title, snippet = fields.snippet, content = "")
     }
 
     private suspend fun enrichHeads(listed: List<NoteMeta>): List<NoteMeta> {

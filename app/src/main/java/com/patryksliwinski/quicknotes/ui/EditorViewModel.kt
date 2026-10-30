@@ -29,13 +29,28 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     private var noteUri: String? = null
     private var saveJob: Job? = null
 
-    fun open(meta: NoteMeta) {
+    fun open(meta: NoteMeta, prefill: String? = null) {
         if (noteUri == meta.uri && _content.value.isNotEmpty()) return
         noteUri = meta.uri
+        saveJob?.cancel()
         _saveState.value = null
+        if (prefill != null) {
+            onContentChange(prefill)
+        } else {
+            viewModelScope.launch {
+                _content.value = repository.readNote(meta.uri)
+                _saveState.value = SaveState.Saved
+            }
+        }
+    }
+
+    fun duplicate(onDuplicated: (NoteMeta) -> Unit) {
+        if (noteUri == null) return
+        val content = _content.value
+        saveJob?.cancel()
         viewModelScope.launch {
-            _content.value = repository.readNote(meta.uri)
-            _saveState.value = SaveState.Saved
+            val note = repository.createNote(content) ?: return@launch
+            onDuplicated(note)
         }
     }
 

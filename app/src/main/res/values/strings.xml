@@ -45,4 +45,6 @@
     <string name="settings_confirm_delete">Confirm before delete</string>
     <string name="settings_confirm_delete_summary">Ask before swipe-to-delete removes a note</string>
     <string name="settings_sort_order">Sort order</string>
+    <string name="shortcut_new_note">New note</string>
+    <string name="action_duplicate_note">Duplicate note</string>
 </resources>

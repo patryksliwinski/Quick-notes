@@ -6,6 +6,7 @@ Self-improving log for this repo.
 
 | Date | Lesson | File |
 |---|---|---|
+| `2026-10-30` | [Lessons are required only when non-obvious, not on every PR — a required-per-PR artifact becomes noise and buries the valuable entries (issue #50)](2026-10-30-lessons-only-when-non-obvious.md) |
 | `2026-10-30` | [One-line notes must have an empty snippet (no title duplication); failed/empty SAF head reads must not be cached, so SD-card rows recover on the next refresh (issue #43)](2026-10-30-one-line-note-snippet-empty-failed-head-not-cached.md) |
 | `2026-10-30` | [SLO quick-leave: journal pending saves and flush on cold start; SAF writes never delete-before-rename (`.bak` rollback, orphan dotfiles healed on scan); one refresh in flight at a time (issue #30)](2026-10-30-slo-quick-leave-durability-and-saf-write-ordering.md) |
 | `2026-10-30` | [SAF head reads are cached keyed by `(uri, lastModified, size)` — `listNotes()` returns metadata only, refresh re-reads only changed files; autosave updates the list in place and coalesces widget refreshes (issue #29)](2026-10-30-saf-head-reads-cached-keyed-by-mtime-size.md) |
@@ -36,6 +37,10 @@ Self-improving log for this repo.
 | `2026-10-29` | [FileObserver doesn't work on SAF paths; rescan on resume instead](2026-10-29-no-fileobserver-on-saf.md) |
 | `2026-10-29` | ["Always a new note" must be structural, not a preference](2026-10-29-always-new-note-structural.md) |
 | `2026-10-29` | [Empty repo edge cases: default branch and PR creation order](2026-10-29-empty-repo-pr-ordering.md) |
+
+## When to add a lesson
+
+Add a lesson **only if** the PR taught something non-obvious — a perf trap, an API gotcha, a CI failure, a decision you'd make differently. Routine changes (version bumps, string tweaks, refactors with no surprise) need no entry; a required-per-PR artifact just becomes noise. If a PR changes a rule in `AGENTS.md` / `docs/WORKFLOW.md`, a lesson explaining why is always expected.
 
 ## How to add a lesson
 

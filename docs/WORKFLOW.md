@@ -10,14 +10,14 @@ How work happens in this repo: branches, PRs, pipelines, reviews, and the self-i
 
 ## Pull requests
 
-1. Open a PR (draft while iterating). Fill in `.github/PULL_REQUEST_TEMPLATE.md` completely — including the **Lessons** section.
+1. Open a PR (draft while iterating). Fill in `.github/PULL_REQUEST_TEMPLATE.md` completely. The **Lessons** checkbox applies only if the PR taught something non-obvious.
 2. The `pr-review` pipeline runs automatically in layers: (a) a fast static scan (build/tests/lint + golden-rule grep) posts a comment, and (b) a Copilot AI review is requested on the PR. A Mistral agent can additionally review the diff and post a formal review. See `.github/workflows/pr-review.yml`.
 3. The implementing agent reviews its own work: it reads its own diff against `AGENTS.md` and the PR-template checklist, pushes the review as comments on the PR, then addresses and fixes those comments in follow-up commits.
-4. Merge only when: CI green, automated review has no blocking findings, the agent's self-review comments are resolved, and the Lessons section is filled.
+4. Merge only when: CI green, automated review has no blocking findings, and the agent's self-review comments are resolved. (A `docs/lessons/` entry is expected only when the PR taught something non-obvious.)
 
 ## The self-improving docs loop (docs/lessons/)
 
-`docs/lessons/` is the repo's memory. It is updated **in the same PR** that introduces the change it describes.
+`docs/lessons/` is the repo's memory. It is updated **in the same PR** that introduces the change it describes — but only when there is an actual lesson: a lesson file is required **only if** the PR taught something non-obvious (perf trap, API gotcha, CI failure, a decision you'd make differently). Requiring one on every PR turns the log into noise and buries the valuable entries.
 
 Rules:
 
@@ -28,8 +28,8 @@ Rules:
   - **Lesson:** the takeaway in one or two sentences
   - **Rule now:** the concrete rule added to AGENTS.md / docs / code (if any)
   ```
-- A lesson is anything that would have changed the outcome if known earlier: a perf trap, an API gotcha, a UX decision, a CI failure, a review finding.
-- If a PR adds a rule to `AGENTS.md`, it must also add a `docs/lessons/` file explaining why.
+- A lesson is anything that would have changed the outcome if known earlier: a perf trap, an API gotcha, a UX decision, a CI failure, a review finding. If none applies, no lesson file is needed.
+- If a PR adds a rule to `AGENTS.md`, it must also add a `docs/lessons/` file explaining why (a rule change is by definition a non-obvious decision).
 - Periodically (every ~10 lessons), fold recurring ones into `AGENTS.md` / `docs/WORKFLOW.md` / `docs/ARCHITECTURE.md` and mark the lesson file `(folded)` in the index.
 
 ## Pipelines (`.github/workflows/`)
@@ -49,4 +49,4 @@ Rules:
 
 ## Code review checklist
 
-Mirror of the PR template: quick-path purity, no main-thread I/O, optimistic UI, sync-agnostic storage, strings externalized, tests added, docs/lessons/ updated. Filled in and enforced by the implementing agent as part of its self-review (implement → self-review → push review comments → fix the comments).
+Mirror of the PR template: quick-path purity, no main-thread I/O, optimistic UI, sync-agnostic storage, strings externalized, tests added, docs/lessons/ entry if the PR taught something non-obvious. Filled in and enforced by the implementing agent as part of its self-review (implement → self-review → push review comments → fix the comments).

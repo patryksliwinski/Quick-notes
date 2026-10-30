@@ -142,7 +142,6 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val ACTION_NEW_NOTE = "com.patryksliwinski.quicknotes.NEW_NOTE"
         const val ACTION_OPEN_NOTE = "com.patryksliwinski.quicknotes.OPEN_NOTE"
-        const val ACTION_SHARE_INTO_NOTE = "com.patryksliwinski.quicknotes.SHARE_INTO_NOTE"
         const val EXTRA_NOTE_URI = "com.patryksliwinski.quicknotes.extra.NOTE_URI"
     }
 }

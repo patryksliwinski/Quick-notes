@@ -273,4 +273,43 @@ class NotesViewModelTest {
         assertEquals(NoteListRow.Header(DAY_KEY_TODAY), rows.first())
         assertTrue(rows.all { it !is NoteListRow.Header || it.dayKey == DAY_KEY_TODAY })
     }
+
+    @Test
+    fun `concurrent cold-start refreshes trigger only one underlying scan`() {
+        val scans = java.util.concurrent.atomic.AtomicInteger(0)
+        val internal = com.patryksliwinski.quicknotes.data.InternalNoteStore(app.filesDir.resolve("notes"))
+        val countingStore = object : com.patryksliwinski.quicknotes.data.NoteStore by internal {
+            override suspend fun listNotes(): List<NoteMeta> {
+                scans.incrementAndGet()
+                return internal.listNotes()
+            }
+        }
+        val repo = NoteRepository(app) { countingStore to false }
+        val vm = NotesViewModel(app)
+        val field = NotesViewModel::class.java.getDeclaredField("repository")
+        field.isAccessible = true
+        field.set(vm, repo)
+        vm.refresh()
+        vm.refresh()
+        vm.refresh()
+        waitFor { scans.get() >= 1 }
+        Thread.sleep(200)
+        assertEquals(1, scans.get())
+    }
+
+    @Test
+    fun `flushPendingSaves is exposed on the view model`() {
+        val journal = com.patryksliwinski.quicknotes.data.PendingSaveJournal(app)
+        app.getSharedPreferences("quicknotes_pending_saves", android.content.Context.MODE_PRIVATE)
+            .edit().clear().commit()
+        viewModel.refresh()
+        waitFor { viewModel.storageName.value.isNotEmpty() }
+        val meta = createWithContent("# Alpha", "first")
+        journal.record(meta.uri, "recovered after kill")
+        viewModel.flushPendingSaves()
+        val file = java.io.File(java.net.URI(meta.uri))
+        waitFor { file.readText() == "recovered after kill" }
+        assertTrue(journal.pending().isEmpty())
+    }
+
 }

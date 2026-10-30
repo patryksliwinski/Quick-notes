@@ -42,6 +42,13 @@ app/src/main/java/com/patryksliwinski/quicknotes/
 - SAF writes go through `ContentResolver`; they can be slow (cloud folders) — that's fine because they're off the main thread and the UI is optimistic.
 - SAF `createDocument` takes the tree's **document URI** (`buildDocumentUriUsingTree(tree, getTreeDocumentId(tree))`), never the tree URI itself — removable volumes (SD cards) reject the tree URI and the write silently fails (issue #23).
 
+## Durability on the quick-leave path (SLO: open < 1 s, type, leave < 100 ms)
+
+- "Leave < 100 ms" is a **UI-leave** latency; durability is guaranteed asynchronously, never by blocking the UI on storage.
+- Every `NoteRepository.writeNote` journals `(uri, content)` in a dedicated SharedPreferences file (`PendingSaveJournal`) **before** the store write and clears the entry only after the write succeeds. On cold start `MainActivity.onCreate` → `NotesViewModel.flushPendingSaves()` → `NoteRepository.flushPendingSaves()` rewrites whatever is still journaled — a process kill inside the 400 ms debounce window (or mid-SAF-write) is recovered on next launch.
+- Writes never delete the target before the new content is committed: tmp file → rename original to a dotfile `.bak` → rename tmp to the target name → delete `.bak` (rename `.bak` back if the commit rename fails). AOSP's `renameDocument` does not overwrite when the target name already exists, so rename-over is not portable; the `.bak` step is what closes the kill-during-write window (issue #30). Leftover `.tmp`/`.bak` dotfiles from a kill are healed on the next `listNotes()` scan (restore the `.bak` if the note is gone, delete otherwise); both stores ignore dotfiles in listings.
+- Cold start runs exactly one list scan: `NotesViewModel.refresh()` coalesces concurrent calls while a refresh is in flight, so `NotesListScreen`'s initial `LaunchedEffect` and `MainActivity.onResume` don't double-scan the folder.
+
 ## Performance contract
 
 - Tap widget/tile/`+` → editable note well under 1 s (no heavy init on the quick path; DB-free).

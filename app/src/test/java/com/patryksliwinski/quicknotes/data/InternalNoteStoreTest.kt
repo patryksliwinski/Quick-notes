@@ -163,4 +163,64 @@ class InternalNoteStoreTest {
     fun `displayName is app-private storage`() {
         assertEquals("App-private storage", store.displayName())
     }
+
+    @Test
+    fun `writeNote commits via tmp rename and leaves no tmp or bak behind`() = runTest {
+        val meta = store.createNoteWithContent("v1")
+        store.writeNote(meta.uri, "v2 longer content")
+        val file = java.io.File(java.net.URI(meta.uri))
+        assertEquals("v2 longer content", file.readText())
+        assertFalse(java.io.File(temp.root, "notes/.${meta.name}.tmp").exists())
+        assertFalse(java.io.File(temp.root, "notes/.${meta.name}.bak").exists())
+        assertEquals(1, store.listNotes().size)
+    }
+
+    @Test
+    fun `writeNote creates the file when it does not exist yet`() = runTest {
+        val missing = java.io.File(temp.root, "notes/20260101-000000-zzzz.md")
+        store.writeNote(missing.toURI().toString(), "born")
+        assertEquals("born", missing.readText())
+    }
+
+    @Test
+    fun `writeNote failure leaves the original content intact`() = runTest {
+        val meta = store.createNoteWithContent("original")
+        val dir = java.io.File(temp.root, "notes")
+        dir.setWritable(false)
+        try {
+            var threw = false
+            try {
+                store.writeNote(meta.uri, "replacement")
+            } catch (e: Exception) {
+                threw = true
+            }
+            assertTrue(threw)
+            assertEquals("original", java.io.File(java.net.URI(meta.uri)).readText())
+        } finally {
+            dir.setWritable(true)
+        }
+    }
+
+    @Test
+    fun `listNotes heals a leftover bak from an interrupted write`() = runTest {
+        store.createNoteWithContent("kept")
+        val orphan = java.io.File(temp.root, "notes/.20260101-000000-aaaa.md.bak")
+        orphan.writeText("last good content")
+        val notes = store.listNotes()
+        assertEquals(2, notes.size)
+        val healed = java.io.File(temp.root, "notes/20260101-000000-aaaa.md")
+        assertTrue(healed.isFile)
+        assertEquals("last good content", healed.readText())
+        assertFalse(orphan.exists())
+    }
+
+    @Test
+    fun `listNotes drops a leftover tmp when the note exists`() = runTest {
+        val meta = store.createNoteWithContent("current")
+        java.io.File(temp.root, "notes/.${meta.name}.tmp").writeText("stale")
+        val notes = store.listNotes()
+        assertEquals(1, notes.size)
+        assertEquals("current", java.io.File(java.net.URI(meta.uri)).readText())
+        assertFalse(java.io.File(temp.root, "notes/.${meta.name}.tmp").exists())
+    }
 }

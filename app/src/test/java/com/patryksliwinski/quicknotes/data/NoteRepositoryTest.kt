@@ -22,7 +22,13 @@ class NoteRepositoryTest {
     fun setUp() {
         context.getSharedPreferences("quicknotes_prefs", android.content.Context.MODE_PRIVATE)
             .edit().clear().commit()
+        context.getSharedPreferences("quicknotes_pending_saves", android.content.Context.MODE_PRIVATE)
+            .edit().clear().commit()
         context.filesDir.resolve("notes").deleteRecursively()
+        val holder = Class.forName("com.patryksliwinski.quicknotes.data.DeletedNoteHolder")
+        val last = holder.getDeclaredField("last")
+        last.isAccessible = true
+        last.set(null, null)
         repository = NoteRepository(context)
         kotlinx.coroutines.runBlocking { repository.refresh() }
     }
@@ -343,6 +349,61 @@ class NoteRepositoryTest {
         repository.writeNote(meta.uri, "# Outside\nnot listed")
         assertTrue(repository.notes.first().isEmpty())
         external.deleteNote(meta.uri)
+    }
+
+    @Test
+    fun `writeNote journals the pending save and clears it after a successful write`() = runTest {
+        val journal = PendingSaveJournal(context)
+        val meta = repository.createNote()!!
+        repository.writeNote(meta.uri, "durable")
+        assertTrue(journal.pending().isEmpty())
+        assertEquals("durable", repository.readNote(meta.uri))
+    }
+
+    @Test
+    fun `writeNote keeps the journal entry when the store write fails`() = runTest {
+        val journal = PendingSaveJournal(context)
+        val repo = NoteRepository(context) { FailingNoteStore(failCreate = false) to false }
+        repo.refresh()
+        repo.writeNote("content://failing/doc1", "must survive")
+        val pending = journal.pending()
+        assertEquals(listOf(PendingSave("content://failing/doc1", "must survive")), pending)
+        assertEquals(NoteError.StorageError, repo.errorMessage.first())
+    }
+
+    @Test
+    fun `flushPendingSaves rewrites journaled content and clears the journal`() = runTest {
+        val journal = PendingSaveJournal(context)
+        val meta = repository.createNote()!!
+        repository.writeNote(meta.uri, "original")
+        journal.record(meta.uri, "typed but killed before write")
+        java.io.File(java.net.URI(meta.uri)).writeText("original")
+        repository.flushPendingSaves()
+        assertEquals("typed but killed before write", repository.readNote(meta.uri))
+        assertTrue(journal.pending().isEmpty())
+    }
+
+    @Test
+    fun `flushPendingSaves without journal entries is a no-op`() = runTest {
+        PendingSaveJournal(context).clear("file:///nonexistent")
+        context.getSharedPreferences("quicknotes_pending_saves", android.content.Context.MODE_PRIVATE)
+            .edit().clear().commit()
+        val meta = repository.createNote()!!
+        repository.writeNote(meta.uri, "stable")
+        repository.flushPendingSaves()
+        assertEquals("stable", repository.readNote(meta.uri))
+    }
+
+    @Test
+    fun `flushPendingSaves keeps the journal entry when the rewrite fails`() = runTest {
+        val journal = PendingSaveJournal(context)
+        context.getSharedPreferences("quicknotes_pending_saves", android.content.Context.MODE_PRIVATE)
+            .edit().clear().commit()
+        journal.record("content://failing/doc1", "keep me")
+        val repo = NoteRepository(context) { FailingNoteStore(failCreate = false) to false }
+        repo.flushPendingSaves()
+        assertEquals(listOf(PendingSave("content://failing/doc1", "keep me")), journal.pending())
+        assertEquals(NoteError.StorageError, repo.errorMessage.first())
     }
 
     private class CountingNoteStore(dir: java.io.File) : NoteStore {

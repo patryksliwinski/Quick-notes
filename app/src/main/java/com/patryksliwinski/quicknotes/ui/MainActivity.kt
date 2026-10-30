@@ -53,6 +53,7 @@ class MainActivity : ComponentActivity() {
             )
         }
         handleIncomingIntent(intent)
+        notesViewModel.flushPendingSaves()
         setContent {
             QuickNotesTheme {
                 AppRoot(

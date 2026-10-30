@@ -28,6 +28,10 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
 
     private var noteUri: String? = null
     private var saveJob: Job? = null
+    private var savedContent: String? = null
+
+    val hasUnsavedChanges: Boolean
+        get() = noteUri != null && _content.value != savedContent
 
     fun open(meta: NoteMeta, prefill: String? = null) {
         if (noteUri == meta.uri && _content.value.isNotEmpty()) return
@@ -35,10 +39,13 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         saveJob?.cancel()
         _saveState.value = null
         if (prefill != null) {
+            savedContent = null
             onContentChange(prefill)
         } else {
             viewModelScope.launch {
-                _content.value = repository.readNote(meta.uri)
+                val loaded = repository.readNote(meta.uri)
+                _content.value = loaded
+                savedContent = loaded
                 _saveState.value = SaveState.Saved
             }
         }
@@ -62,17 +69,24 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         saveJob = viewModelScope.launch {
             delay(400)
             repository.writeNote(uri, text)
-            _saveState.value = SaveState.Saved
+            if (_content.value == text) {
+                savedContent = text
+                _saveState.value = SaveState.Saved
+            }
         }
     }
 
     fun saveNow() {
         val uri = noteUri ?: return
+        val text = _content.value
         saveJob?.cancel()
         _saveState.value = SaveState.Saving
         viewModelScope.launch {
-            repository.writeNote(uri, _content.value)
-            _saveState.value = SaveState.Saved
+            repository.writeNote(uri, text)
+            if (_content.value == text) {
+                savedContent = text
+                _saveState.value = SaveState.Saved
+            }
         }
     }
 }

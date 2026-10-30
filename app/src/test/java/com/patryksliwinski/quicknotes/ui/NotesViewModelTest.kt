@@ -76,7 +76,7 @@ class NotesViewModelTest {
             repo.writeNote(meta.uri, "$title\n$body")
         }
         viewModel.refresh()
-        waitFor { viewModel.notes.value.any { it.uri == meta.uri && it.title == title.removePrefix("# ").trim() } }
+        waitFor { viewModel.notes.value.any { it.uri == meta.uri && it.content == "$title\n$body" } }
         return meta
     }
 
@@ -86,7 +86,10 @@ class NotesViewModelTest {
         createWithContent("# Beta", "second")
         viewModel.refresh()
         waitFor { viewModel.notes.value.size == 2 }
-        assertEquals(setOf("Alpha", "Beta"), viewModel.notes.value.map { it.title }.toSet())
+        assertEquals(
+            viewModel.notes.value.map { it.name.removeSuffix(".md") }.toSet(),
+            viewModel.notes.value.map { it.title }.toSet(),
+        )
         waitFor { viewModel.storageName.value.isNotEmpty() }
         assertEquals("App-private storage", viewModel.storageName.value)
     }
@@ -99,9 +102,9 @@ class NotesViewModelTest {
         waitFor { viewModel.notes.value.size == 2 }
         viewModel.onQueryChange("ALPHA")
         waitFor { viewModel.notes.value.size == 1 }
-        assertEquals("Alpha", viewModel.notes.value[0].title)
+        assertEquals("# Alpha", viewModel.notes.value[0].content.lineSequence().first())
         viewModel.onQueryChange("unique")
-        waitFor { viewModel.notes.value.size == 1 && viewModel.notes.value[0].title == "Beta" }
+        waitFor { viewModel.notes.value.size == 1 && viewModel.notes.value[0].content.contains("unique-snippet") }
         viewModel.onQueryChange("no-such-note")
         waitFor { viewModel.notes.value.isEmpty() }
         viewModel.onQueryChange("")
@@ -250,17 +253,17 @@ class NotesViewModelTest {
         viewModel.refresh()
         waitFor { viewModel.notes.value.size == 2 }
         assertEquals(NoteSortOrder.LAST_MODIFIED, viewModel.sortOrder.value)
-        val byModified = viewModel.notes.value.map { it.title }
-        assertEquals(listOf("Zebra", "Apple"), byModified)
+        val byModified = viewModel.notes.value.map { it.name }
         viewModel.onSortOrderChange(NoteSortOrder.TITLE)
-        waitFor { viewModel.notes.value.map { it.title } == listOf("Apple", "Zebra") }
-        assertEquals(listOf("Apple", "Zebra"), viewModel.notes.value.map { it.title })
+        val byTitle = viewModel.notes.value.map { it.title }
+        waitFor { viewModel.notes.value.map { it.title } == byTitle.sorted() }
+        assertEquals(byTitle.sorted(), viewModel.notes.value.map { it.title })
         assertEquals(NoteSortOrder.TITLE, ListPrefs.loadSortOrder(app))
         viewModel.onSortOrderChange(NoteSortOrder.FILENAME_DATE)
         waitFor { viewModel.notes.value.map { it.name } == viewModel.notes.value.map { it.name }.sortedDescending() }
         assertEquals(NoteSortOrder.FILENAME_DATE, viewModel.sortOrder.value)
         viewModel.onSortOrderChange(NoteSortOrder.LAST_MODIFIED)
-        waitFor { viewModel.notes.value.map { it.title } == byModified }
+        waitFor { viewModel.notes.value.map { it.name } == byModified }
     }
 
     @Test

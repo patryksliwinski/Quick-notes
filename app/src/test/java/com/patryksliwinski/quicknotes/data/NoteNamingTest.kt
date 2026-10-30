@@ -43,11 +43,11 @@ class NoteNamingTest {
     @Test
     fun `deriveHead combines title and snippet derivation`() {
         val fields = deriveHead("x.md", "# Shopping\nbuy milk")
-        assertEquals(HeadFields(title = "Shopping", snippet = "buy milk"), fields)
+        assertEquals(HeadFields(title = "x", snippet = "# Shopping"), fields)
     }
 
     @Test
-    fun `deriveHead on empty head falls back to file name`() {
+    fun `deriveHead on empty head keeps the file name as title and empty snippet`() {
         assertEquals(
             HeadFields(title = "20250101-120000-abcd", snippet = ""),
             deriveHead("20250101-120000-abcd.md", ""),
@@ -55,48 +55,24 @@ class NoteNamingTest {
     }
 
     @Test
-    fun `title derives from first markdown heading`() {
-        assertEquals("Shopping", deriveTitle("x.md", "# Shopping\n\nbuy milk"))
-    }
-
-    @Test
-    fun `title falls back to file name when empty`() {
+    fun `title is always the file name regardless of content`() {
+        assertEquals("x", deriveTitle("x.md", "# Shopping\n\nbuy milk"))
         assertEquals("20250101-120000-abcd", deriveTitle("20250101-120000-abcd.md", ""))
-    }
-
-    @Test
-    fun `title skips blank lines before first heading`() {
-        assertEquals("Ideas", deriveTitle("x.md", "\n   \n## Ideas\nbody"))
-    }
-
-    @Test
-    fun `title falls back to file name when heading is empty`() {
+        assertEquals("x", deriveTitle("x.md", "\n   \n## Ideas\nbody"))
         assertEquals("20250101-120000-abcd", deriveTitle("20250101-120000-abcd.md", "#   \nbody"))
-    }
-
-    @Test
-    fun `title strips multiple leading hashes and whitespace`() {
-        assertEquals("Deep", deriveTitle("x.md", "  ###   Deep  \nbody"))
-    }
-
-    @Test
-    fun `title falls back to file name for blank head`() {
+        assertEquals("x", deriveTitle("x.md", "  ###   Deep  \nbody"))
         assertEquals("20250101-120000-abcd", deriveTitle("20250101-120000-abcd.md", "   "))
     }
 
     @Test
-    fun `snippet takes first non-title line`() {
-        assertEquals("buy milk", deriveSnippet("x.md", "# Shopping\nbuy milk"))
+    fun `title ignores the head so the list never flips between file name and first line`() {
+        assertEquals(deriveTitle("20260101-000000-abcd.md", ""), deriveTitle("20260101-000000-abcd.md", "# Fresh title\nbody"))
     }
 
     @Test
-    fun `snippet is empty when there is no body line`() {
-        assertEquals("", deriveSnippet("x.md", "# Shopping"))
-    }
-
-    @Test
-    fun `snippet is empty for a one-line note without heading`() {
-        assertEquals("", deriveSnippet("x.md", "Shopping"))
+    fun `snippet is the first non-empty line of content`() {
+        assertEquals("# Shopping", deriveSnippet("x.md", "# Shopping\nbuy milk"))
+        assertEquals("Shopping", deriveSnippet("x.md", "Shopping"))
     }
 
     @Test
@@ -107,17 +83,17 @@ class NoteNamingTest {
     @Test
     fun `snippet is truncated to 80 chars`() {
         val long = "a".repeat(200)
-        assertEquals(80, deriveSnippet("x.md", "t\n$long").length)
+        assertEquals(80, deriveSnippet("x.md", "$long").length)
     }
 
     @Test
     fun `snippet skips blank lines`() {
-        assertEquals("second", deriveSnippet("x.md", "# T\n\n\nsecond"))
+        assertEquals("second", deriveSnippet("x.md", "\n\n\nsecond"))
     }
 
     @Test
-    fun `snippet is empty when every body line equals the title`() {
-        assertEquals("", deriveSnippet("x.md", "Shopping\nShopping"))
-        assertEquals("", deriveSnippet("x.md", "# Shopping\nShopping"))
+    fun `snippet no longer depends on the title so the first line is always shown`() {
+        assertEquals("Shopping", deriveSnippet("x.md", "Shopping\nShopping"))
+        assertEquals("# Shopping", deriveSnippet("20250101-120000-abcd.md", "# Shopping\nShopping"))
     }
 }

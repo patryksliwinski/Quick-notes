@@ -48,8 +48,8 @@ class InternalNoteStoreTest {
         val file = java.io.File(java.net.URI(meta.uri))
         assertTrue(file.isFile)
         assertEquals("# Copied\nhello", file.readText())
-        assertEquals("Copied", meta.title)
-        assertEquals("hello", meta.snippet)
+        assertEquals(meta.name.removeSuffix(".md"), meta.title)
+        assertEquals("# Copied", meta.snippet)
     }
 
     @Test
@@ -86,8 +86,8 @@ class InternalNoteStoreTest {
         assertEquals("", notes[0].snippet)
         assertEquals("# Shopping\nbuy milk".length.toLong(), notes[0].size)
         val fields = deriveHead(notes[0].name, store.readHead(notes[0].uri))
-        assertEquals("Shopping", fields.title)
-        assertEquals("buy milk", fields.snippet)
+        assertEquals("20250101-120000-abcd", fields.title)
+        assertEquals("# Shopping", fields.snippet)
     }
 
     @Test
@@ -122,8 +122,8 @@ class InternalNoteStoreTest {
         val notes = store.listNotes()
         assertEquals(1, notes.size)
         val fields = deriveHead(notes[0].name, store.readHead(notes[0].uri))
-        assertEquals("Synced", fields.title)
-        assertEquals("from git", fields.snippet)
+        assertEquals("20250101-090000-sync", fields.title)
+        assertEquals("# Synced", fields.snippet)
     }
 
     @Test
@@ -144,15 +144,15 @@ class InternalNoteStoreTest {
     @Test
     fun `restoreNote derives title and snippet from restored content`() = runTest {
         val meta = store.restoreNote("restored.md", "# Restored\nbody line")
-        assertEquals("Restored", meta.title)
-        assertEquals("body line", meta.snippet)
+        assertEquals("restored", meta.title)
+        assertEquals("# Restored", meta.snippet)
     }
 
     @Test
     fun `restoreNote of a one-line note derives empty snippet`() = runTest {
         val meta = store.restoreNote("restored.md", "# Only")
-        assertEquals("Only", meta.title)
-        assertEquals("", meta.snippet)
+        assertEquals("restored", meta.title)
+        assertEquals("# Only", meta.snippet)
     }
 
     @Test

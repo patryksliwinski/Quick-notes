@@ -6,6 +6,7 @@ Self-improving log for this repo.
 
 | Date | Lesson | File |
 |---|---|---|
+| `2026-10-30` | [Serialized note writes: per-URI mutex in `NoteRepository` because cancelled jobs still finish their IO write; `saveNow` commits via `saveJob`; tests quiesce before `resetMain` and survive the tmp→rename window (PR #39)](2026-10-30-serialized-note-writes-mutex-and-noncancelable-save.md) |
 | `2026-10-30` | [One CI workflow per pipeline — never duplicate the Gradle build across workflows; pass the verdict via `needs.<job>.result`, never re-run (issue #46)](2026-10-30-single-ci-workflow-no-duplicate-builds.md) |
 | `2026-10-30` | [Lessons are required only when non-obvious, not on every PR — a required-per-PR artifact becomes noise and buries the valuable entries (issue #50)](2026-10-30-lessons-only-when-non-obvious.md) |
 | `2026-10-30` | [PR template shrunk to a short high-signal checklist; Type section and ritual self-review checkboxes removed, CI/Kover/lint stay the enforcement layer (issue #51)](2026-10-30-pr-template-shrunk-to-high-signal-checklist.md) |

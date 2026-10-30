@@ -73,15 +73,16 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
             onContentChange(prefill)
         } else {
             viewModelScope.launch {
-                val text = repository.readNote(meta.uri)
-                if (generation != openGeneration || contentDirty) return@launch
-                _content.value = text
-                lastSaved = text
-                savedContent = text
-                _saveState.value = SaveState.Saved
-                _fontSizeSp.value = withContext(Dispatchers.IO) {
-                    EditorPrefs.loadFontSizeSp(getApplication())
+                val text = withContext(Dispatchers.IO) {
+                    val loaded = repository.readNote(meta.uri)
+                    loaded to EditorPrefs.loadFontSizeSp(getApplication())
                 }
+                if (generation != openGeneration || contentDirty) return@launch
+                _content.value = text.first
+                lastSaved = text.first
+                savedContent = text.first
+                _saveState.value = SaveState.Saved
+                _fontSizeSp.value = text.second
             }
         }
     }
@@ -121,7 +122,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         saveJob?.cancel()
         val text = _content.value
         _saveState.value = SaveState.Saving
-        viewModelScope.launch {
+        saveJob = viewModelScope.launch {
             commitSnapshot(text)
             repository.writeNote(uri, text)
             savedContent = text

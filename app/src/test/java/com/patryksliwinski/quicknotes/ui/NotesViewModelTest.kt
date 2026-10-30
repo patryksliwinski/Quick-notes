@@ -310,7 +310,7 @@ class NotesViewModelTest {
         journal.record(meta.uri, "recovered after kill")
         viewModel.flushPendingSaves()
         val file = java.io.File(java.net.URI(meta.uri))
-        waitFor { file.exists() && file.readText() == "recovered after kill" }
+        waitFor { runCatching { file.readText() }.getOrNull() == "recovered after kill" }
         assertTrue(journal.pending().isEmpty())
     }
 

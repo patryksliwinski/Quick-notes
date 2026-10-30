@@ -1,0 +1,12 @@
+# 2026-10-30 — Serialized note writes and non-cancelable commits
+
+## Context
+PR #39's `redo reapplies undone content and persists it` test failed CI persistently across ~8 fix attempts, with two other EditorViewModel tests failing intermittently with `Dispatchers.Main is used concurrently with setting it` in `tearDown`, and `NotesViewModelTest` occasionally throwing `FileNotFoundException` mid-poll.
+
+## Lesson
+- **Overlapping note writes race on fixed tmp/bak names.** `InternalNoteStore.writeNote` stages through `.{name}.tmp`/`.{name}.bak`; `EditorViewModel.saveNow()` cancels the pending debounced save, but cancellation is cooperative — a cancelled job already inside `withContext(Dispatchers.IO)` keeps running its write. Two concurrent writers then interleave renames on the *same* tmp/bak paths: one writer's `bak.delete()` or failed `tmp.renameTo(file)` leaves the note file absent (only a `.bak` dotfile remains), so a reader polling the file times out waiting for content that never lands. **Fix:** serialize all writes per note URI with a process-wide `Mutex` in `NoteRepository` (each ViewModel builds its own repository instance, so the map must be a companion, not per-instance), and make `saveNow` assign its job to `saveJob` so a subsequent `scheduleSave` cancels the *pending* save, not a committed one. The mutex makes the last write always win deterministically.
+- **`Dispatchers.setMain(Unconfined)` + async save = resetMain race.** A test that returns as soon as `content` StateFlow updates can hit `tearDown`'s `Dispatchers.resetMain()` while a save coroutine still has a pending `Dispatchers.Main` resumption → kotlinx-coroutines-test's `TestMainDispatcher` throws `IllegalStateException` (it detects concurrent use). **Fix:** in `tearDown`, quiesce first (`waitFor { saveState != Saving }`) before calling `resetMain()`.
+- **Polling `File.readText()` across the atomic-rename window throws.** Between `file.renameTo(bak)` and `tmp.renameTo(file)` the target path does not exist; a `waitFor { file.exists() && readText() ... }` poll can hit that window. **Fix:** `runCatching { readText() }.getOrNull()` in the poll — treat "absent or unreadable" as not-yet-saved and keep polling.
+
+## Rule now
+All note writes go through `NoteRepository.writeNote`/`flushPendingSaves`, which hold a per-URI mutex; commit saves are tracked in `saveJob` so debounce cancels only un-started saves. ViewModel tests quiesce async saves before `resetMain()` and tolerate the rename window when polling note files.

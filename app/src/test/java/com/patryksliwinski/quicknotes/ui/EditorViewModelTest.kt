@@ -40,6 +40,10 @@ class EditorViewModelTest {
 
     @After
     fun tearDown() {
+        val deadline = System.currentTimeMillis() + 5000
+        while (viewModel.saveState.value == SaveState.Saving && System.currentTimeMillis() < deadline) {
+            Thread.sleep(20)
+        }
         Dispatchers.resetMain()
     }
 
@@ -62,7 +66,7 @@ class EditorViewModelTest {
     private fun fileOf(meta: NoteMeta) = java.io.File(java.net.URI(meta.uri))
 
     private fun readIfExists(meta: NoteMeta): String? =
-        fileOf(meta).takeIf { it.isFile }?.readText()
+        runCatching { fileOf(meta).readText() }.getOrNull()
 
     @Test
     fun `open loads note content`() {

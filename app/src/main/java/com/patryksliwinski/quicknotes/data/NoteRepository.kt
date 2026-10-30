@@ -12,6 +12,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
@@ -121,16 +123,18 @@ class NoteRepository(
 
     suspend fun writeNote(uri: String, content: String) = withContext(Dispatchers.IO) {
         journal.record(uri, content)
-        try {
-            store.writeNote(uri, content)
-            journal.clear(uri)
-            val now = System.currentTimeMillis()
-            _notes.value = upsertEditedNote(_notes.value, uri, content, now)
-            scheduleWidgetRefresh()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            _errorMessage.value = NoteError.StorageError
+        mutexFor(uri).withLock {
+            try {
+                store.writeNote(uri, content)
+                journal.clear(uri)
+                val now = System.currentTimeMillis()
+                _notes.value = upsertEditedNote(_notes.value, uri, content, now)
+                scheduleWidgetRefresh()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _errorMessage.value = NoteError.StorageError
+            }
         }
     }
 
@@ -142,14 +146,18 @@ class NoteRepository(
         _folderRevoked.value = revoked
         _storageName.value = resolved.displayName()
         for (save in pending) {
-            try {
-                resolved.writeNote(save.uri, save.content)
-                journal.clear(save.uri)
-            } catch (e: Exception) {
-                _errorMessage.value = NoteError.StorageError
+            mutexFor(save.uri).withLock {
+                try {
+                    resolved.writeNote(save.uri, save.content)
+                    journal.clear(save.uri)
+                } catch (e: Exception) {
+                    _errorMessage.value = NoteError.StorageError
+                }
             }
         }
     }
+
+    private fun mutexFor(uri: String): Mutex = writeMutexes.computeIfAbsent(uri) { Mutex() }
 
     private fun upsertEditedNote(
         current: List<NoteMeta>,
@@ -214,6 +222,7 @@ class NoteRepository(
     }
 
     private companion object {
+        val writeMutexes = ConcurrentHashMap<String, Mutex>()
         const val WIDGET_REFRESH_COALESCE_MS = 2000L
     }
 

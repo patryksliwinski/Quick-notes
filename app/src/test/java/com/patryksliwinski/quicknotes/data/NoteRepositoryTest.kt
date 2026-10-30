@@ -167,6 +167,7 @@ class NoteRepositoryTest {
         repo = NoteRepository(context) { observing to false }
         repo.createNote("# Edited\nfresh body")
         repo.refresh()
+        seenPlaceholders.clear()
         val file = java.io.File(java.net.URI(repo.notes.first().first().uri))
         file.setLastModified(file.lastModified() + 5000L)
         repo.refresh()

@@ -31,6 +31,8 @@ class EditorViewModelTest {
         Dispatchers.setMain(Dispatchers.Unconfined)
         app.getSharedPreferences("quicknotes_prefs", android.content.Context.MODE_PRIVATE)
             .edit().clear().commit()
+        app.getSharedPreferences("quicknotes_pending_saves", android.content.Context.MODE_PRIVATE)
+            .edit().clear().commit()
         app.filesDir.resolve("notes").deleteRecursively()
         viewModel = EditorViewModel(app)
         store = InternalNoteStore(app.filesDir.resolve("notes"))

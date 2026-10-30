@@ -55,7 +55,13 @@ class NotesViewModelTest {
 
     private fun waitFor(timeoutMs: Long = 5000, condition: () -> Boolean) {
         val deadline = System.currentTimeMillis() + timeoutMs
-        while (!condition()) {
+        while (true) {
+            val met = try {
+                condition()
+            } catch (e: Exception) {
+                false
+            }
+            if (met) return
             if (System.currentTimeMillis() > deadline) {
                 throw AssertionError("condition not met within ${timeoutMs}ms (notes=${viewModel.notes.value.size})")
             }

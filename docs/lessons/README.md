@@ -8,6 +8,7 @@ Self-improving log for this repo.
 |---|---|---|
 | `2026-10-30` | [One CI workflow per pipeline — never duplicate the Gradle build across workflows; pass the verdict via `needs.<job>.result`, never re-run (issue #46)](2026-10-30-single-ci-workflow-no-duplicate-builds.md) |
 | `2026-10-30` | [Lessons are required only when non-obvious, not on every PR — a required-per-PR artifact becomes noise and buries the valuable entries (issue #50)](2026-10-30-lessons-only-when-non-obvious.md) |
+| `2026-10-30` | [PR template shrunk to a short high-signal checklist; Type section and ritual self-review checkboxes removed, CI/Kover/lint stay the enforcement layer (issue #51)](2026-10-30-pr-template-shrunk-to-high-signal-checklist.md) |
 | `2026-10-30` | [One-line notes must have an empty snippet (no title duplication); failed/empty SAF head reads must not be cached, so SD-card rows recover on the next refresh (issue #43)](2026-10-30-one-line-note-snippet-empty-failed-head-not-cached.md) |
 | `2026-10-30` | [SLO quick-leave: journal pending saves and flush on cold start; SAF writes never delete-before-rename (`.bak` rollback, orphan dotfiles healed on scan); one refresh in flight at a time (issue #30)](2026-10-30-slo-quick-leave-durability-and-saf-write-ordering.md) |
 | `2026-10-30` | [SAF head reads are cached keyed by `(uri, lastModified, size)` — `listNotes()` returns metadata only, refresh re-reads only changed files; autosave updates the list in place and coalesces widget refreshes (issue #29)](2026-10-30-saf-head-reads-cached-keyed-by-mtime-size.md) |

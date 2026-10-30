@@ -10,10 +10,10 @@ How work happens in this repo: branches, PRs, pipelines, reviews, and the self-i
 
 ## Pull requests
 
-1. Open a PR (draft while iterating). Fill in `.github/PULL_REQUEST_TEMPLATE.md` completely — including the **Lessons** section.
+1. Open a PR (draft while iterating). Fill in `.github/PULL_REQUEST_TEMPLATE.md`: **What & why**, which verification commands you ran, and the golden rules a machine can't check.
 2. The `CI` pipeline (`.github/workflows/pr.yml`) runs automatically in one workflow with two jobs: `build-and-test` runs the Gradle checks once (`testDebugUnitTest`, `:app:koverVerifyDebug`, `lintDebug`, `assembleDebug`) on pushes to `main` and PRs, and — on PRs only, after the build job — `automated-review` does a fast static golden-rule grep, posts a comment, and requests a Copilot AI review. A Mistral agent can additionally review the diff and post a formal review. See `.github/workflows/pr.yml`.
 3. The implementing agent reviews its own work: it reads its own diff against `AGENTS.md` and the PR-template checklist, pushes the review as comments on the PR, then addresses and fixes those comments in follow-up commits.
-4. Merge only when: CI green, automated review has no blocking findings, the agent's self-review comments are resolved, and the Lessons section is filled.
+4. Merge only when: CI green, automated review has no blocking findings, and the agent's self-review comments are resolved. (A `docs/lessons/` entry is expected only when the PR taught something non-obvious.)
 
 ## The self-improving docs loop (docs/lessons/)
 
@@ -48,4 +48,4 @@ Rules:
 
 ## Code review checklist
 
-Mirror of the PR template: quick-path purity, no main-thread I/O, optimistic UI, sync-agnostic storage, strings externalized, tests added, docs/lessons/ updated. Filled in and enforced by the implementing agent as part of its self-review (implement → self-review → push review comments → fix the comments).
+Self-review checklist (AGENTS.md golden rules): quick-path purity, no main-thread I/O, optimistic UI, sync-agnostic storage, strings externalized, tests added, docs/lessons/ entry if the PR taught something non-obvious. Enforced by the implementing agent as part of its self-review (implement → self-review → push review comments → fix the comments).

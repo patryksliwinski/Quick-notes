@@ -24,7 +24,11 @@ enum class SaveState {
 
 class EditorViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository = NoteRepository(application)
+    constructor(application: Application, repository: NoteRepository) : this(application) {
+        this.repository = repository
+    }
+
+    private var repository = NoteRepositoryHolder.get(application)
     private val undoStack = UndoStack()
 
     private val _content = MutableStateFlow("")
@@ -50,9 +54,10 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     private var openGeneration = 0
     private var contentDirty = false
     private var saveJob: Job? = null
-    private var lastSaved: String = ""
+    private var lastSaved = ""
     private var savedContent: String? = null
     private var restoring = false
+    private var loadFailed = false
 
     val hasUnsavedChanges: Boolean
         get() = noteUri != null && _content.value != savedContent
@@ -62,6 +67,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         noteUri = meta.uri
         val generation = ++openGeneration
         contentDirty = false
+        loadFailed = false
         saveJob?.cancel()
         _saveState.value = null
         undoStack.reset()
@@ -73,16 +79,26 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
             onContentChange(prefill)
         } else {
             viewModelScope.launch {
-                val text = withContext(Dispatchers.IO) {
-                    val loaded = repository.readNote(meta.uri)
-                    loaded to EditorPrefs.loadFontSizeSp(getApplication())
+                val loaded = withContext(Dispatchers.IO) {
+                    val text = repository.readNote(meta.uri)
+                    text to EditorPrefs.loadFontSizeSp(getApplication())
                 }
                 if (generation != openGeneration || contentDirty) return@launch
-                _content.value = text.first
-                lastSaved = text.first
-                savedContent = text.first
-                _saveState.value = SaveState.Saved
-                _fontSizeSp.value = text.second
+                loaded.first.fold(
+                    onSuccess = { text ->
+                        _content.value = text
+                        lastSaved = text
+                        savedContent = text
+                        _saveState.value = SaveState.Saved
+                        _fontSizeSp.value = loaded.second
+                    },
+                    onFailure = {
+                        loadFailed = true
+                        _content.value = ""
+                        savedContent = null
+                        _saveState.value = null
+                    },
+                )
             }
         }
     }
@@ -100,6 +116,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun onContentChange(text: String) {
         contentDirty = true
         _content.value = text
+        if (loadFailed) return
         scheduleSave(text)
     }
 
@@ -119,14 +136,17 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
 
     fun saveNow() {
         val uri = noteUri ?: return
+        if (loadFailed) return
         saveJob?.cancel()
         val text = _content.value
         _saveState.value = SaveState.Saving
         saveJob = viewModelScope.launch {
             commitSnapshot(text)
             repository.writeNote(uri, text)
-            savedContent = text
-            _saveState.value = SaveState.Saved
+            if (_content.value == text) {
+                savedContent = text
+                _saveState.value = SaveState.Saved
+            }
         }
     }
 
@@ -149,8 +169,10 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
             delay(debounce)
             commitSnapshot(text)
             repository.writeNote(uri, text)
-            savedContent = text
-            _saveState.value = SaveState.Saved
+            if (_content.value == text) {
+                savedContent = text
+                _saveState.value = SaveState.Saved
+            }
         }
     }
 

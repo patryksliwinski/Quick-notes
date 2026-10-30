@@ -111,11 +111,71 @@ class NoteRepositoryTest {
     }
 
     @Test
-    fun `readNote failure sets StorageError and returns empty`() = runTest {
+    fun `readNote failure sets StorageError and returns failure instead of empty content`() = runTest {
         val repo = NoteRepository(context) { FailingNoteStore(failCreate = false) to false }
         repo.refresh()
-        assertEquals("", repo.readNote("content://failing/doc1"))
+        assertTrue(repo.readNote("content://failing/doc1").isFailure)
         assertEquals(NoteError.StorageError, repo.errorMessage.first())
+    }
+
+    @Test
+    fun `refresh surfaces FolderUnavailable when the store silently returns no notes`() = runTest {
+        val repo = NoteRepository(context) { NullReturningNoteStore() to false }
+        repo.refresh()
+        assertEquals(NoteError.FolderUnavailable, repo.errorMessage.first())
+        assertTrue(repo.notes.first().isEmpty())
+    }
+
+    @Test
+    fun `readNote on a store that silently returns empty for a non-empty note surfaces StorageError`() = runTest {
+        val meta = NoteMeta("content://null/doc1", "doc1.md", 0L, "doc1", "", size = 42L)
+        val listed = object : NoteStore by NullReturningNoteStore() {
+            override suspend fun listNotes() = listOf(meta)
+        }
+        val repo = NoteRepository(context) { listed to false }
+        repo.refresh()
+        repo.clearError()
+        assertTrue(repo.readNote(meta.uri).isFailure)
+        assertEquals(NoteError.StorageError, repo.errorMessage.first())
+    }
+
+    @Test
+    fun `readNote on a store that silently returns empty for a zero byte note is success`() = runTest {
+        val meta = NoteMeta("content://null/doc1", "doc1.md", 0L, "doc1", "", size = 0L)
+        val listed = object : NoteStore by NullReturningNoteStore() {
+            override suspend fun listNotes() = listOf(meta)
+        }
+        val repo = NoteRepository(context) { listed to false }
+        repo.refresh()
+        val result = repo.readNote(meta.uri)
+        assertTrue(result.isSuccess)
+        assertEquals("", result.getOrThrow())
+    }
+
+    @Test
+    fun `readNote succeeds with genuinely empty content for a zero byte note`() = runTest {
+        val (meta) = seed("")
+        val result = repository.readNote(meta.uri)
+        assertTrue(result.isSuccess)
+        assertEquals("", result.getOrThrow())
+        assertNull(repository.errorMessage.first())
+    }
+
+    @Test
+    fun `deleteNote aborts when the note content cannot be read so undo keeps real content`() = runTest {
+        val (meta) = seed("# Real\ncontent")
+        val silentEmpty = object : NoteStore by InternalNoteStore(context.filesDir.resolve("notes")) {
+            override suspend fun readNote(uri: String): String = ""
+        }
+        val field = NoteRepository::class.java.getDeclaredField("store")
+        field.isAccessible = true
+        field.set(repository, silentEmpty)
+        assertFalse(repository.deleteNote(meta))
+        assertEquals(NoteError.StorageError, repository.errorMessage.first())
+        assertEquals(1, repository.notes.first().size)
+        repository.undoDelete()
+        assertEquals(1, repository.notes.first().size)
+        assertEquals("# Real\ncontent", java.io.File(java.net.URI(meta.uri)).readText())
     }
 
     @Test
@@ -165,7 +225,7 @@ class NoteRepositoryTest {
     @Test
     fun `readNote returns content`() = runTest {
         val (meta) = seed("# Title\nhello world")
-        assertEquals("# Title\nhello world", repository.readNote(meta.uri))
+        assertEquals("# Title\nhello world", repository.readNote(meta.uri).getOrThrow())
     }
 
     @Test
@@ -177,7 +237,7 @@ class NoteRepositoryTest {
         val restored = repository.notes.first()
         assertEquals(1, restored.size)
         assertEquals(meta.uri, restored[0].uri)
-        assertEquals("# Keep\nrestore me", repository.readNote(restored[0].uri))
+        assertEquals("# Keep\nrestore me", repository.readNote(restored[0].uri).getOrThrow())
     }
 
     @Test
@@ -217,7 +277,7 @@ class NoteRepositoryTest {
         assertEquals(1, notes.size)
         assertEquals("New", notes[0].title)
         assertEquals("new", notes[0].snippet)
-        assertEquals("# New\nnew", repository.readNote(notes[0].uri))
+        assertEquals("# New\nnew", repository.readNote(notes[0].uri).getOrThrow())
     }
 
     @Test
@@ -229,7 +289,7 @@ class NoteRepositoryTest {
     @Test
     fun `createNote with content writes the content and derives title in one write`() = runTest {
         val meta = repository.createNote("# Shared\nfrom another app")!!
-        assertEquals("# Shared\nfrom another app", repository.readNote(meta.uri))
+        assertEquals("# Shared\nfrom another app", repository.readNote(meta.uri).getOrThrow())
         assertTrue(Regex("""\d{8}-\d{6}-[a-z0-9]{4}\.md""").matches(meta.name))
         assertEquals("Shared", meta.title)
         assertEquals("from another app", meta.snippet)
@@ -243,7 +303,7 @@ class NoteRepositoryTest {
         val meta = repo.createNote("shared text")
         assertTrue(meta != null)
         assertTrue(meta!!.uri.startsWith("file:"))
-        assertEquals("shared text", repo.readNote(meta.uri))
+        assertEquals("shared text", repo.readNote(meta.uri).getOrThrow())
         assertTrue(repo.folderRevoked.first())
     }
 
@@ -403,7 +463,7 @@ class NoteRepositoryTest {
         val meta = repository.createNote()!!
         repository.writeNote(meta.uri, "durable")
         assertTrue(journal.pending().isEmpty())
-        assertEquals("durable", repository.readNote(meta.uri))
+        assertEquals("durable", repository.readNote(meta.uri).getOrThrow())
     }
 
     @Test
@@ -425,7 +485,7 @@ class NoteRepositoryTest {
         journal.record(meta.uri, "typed but killed before write")
         java.io.File(java.net.URI(meta.uri)).writeText("original")
         repository.flushPendingSaves()
-        assertEquals("typed but killed before write", repository.readNote(meta.uri))
+        assertEquals("typed but killed before write", repository.readNote(meta.uri).getOrThrow())
         assertTrue(journal.pending().isEmpty())
     }
 
@@ -437,7 +497,7 @@ class NoteRepositoryTest {
         val meta = repository.createNote()!!
         repository.writeNote(meta.uri, "stable")
         repository.flushPendingSaves()
-        assertEquals("stable", repository.readNote(meta.uri))
+        assertEquals("stable", repository.readNote(meta.uri).getOrThrow())
     }
 
     @Test

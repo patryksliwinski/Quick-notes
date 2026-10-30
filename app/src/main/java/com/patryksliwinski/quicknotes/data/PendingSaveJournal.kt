@@ -1,16 +1,17 @@
 package com.patryksliwinski.quicknotes.data
 
 import android.content.Context
+import android.content.SharedPreferences
 import org.json.JSONObject
 
 data class PendingSave(val uri: String, val content: String)
 
-class PendingSaveJournal(context: Context) {
+class PendingSaveJournal(private val prefs: SharedPreferences) {
 
-    private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    constructor(context: Context) : this(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE))
 
     fun record(uri: String, content: String) {
-        prefs.edit().putString(uri, JSONObject().put(KEY_CONTENT, content).toString()).apply()
+        prefs.edit().putString(uri, JSONObject().put(KEY_CONTENT, content).toString()).commit()
     }
 
     fun clear(uri: String) {

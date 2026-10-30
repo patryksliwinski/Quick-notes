@@ -1,4 +1,0 @@
-# 2026-10-29 — `actions/setup-android` no longer exists; use `android-actions/setup-android`
-- **Context:** PR #1 CI and PR-review workflows failed instantly on every run with `Unable to resolve action actions/setup-android, repository not found`.
-- **Lesson:** The first-party `actions/setup-android` action was removed/never existed under `actions/`; the maintained action lives at `android-actions/setup-android` (current major: `v4`, e.g. `@v4` or `@v4.0.4`). Verify action existence via the GitHub API (`/repos/<owner>/<repo>`) before pinning. A workflow that fails at action-resolution time never runs a single step — check `gh run view --log` for `Unable to resolve action` first when all jobs fail in seconds.
-- **Rule now:** Both workflows use `android-actions/setup-android@v4`; AGENTS.md/docs reference only existing actions.

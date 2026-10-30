@@ -357,6 +357,36 @@ class EditorViewModelTest {
     }
 
     @Test
+    fun `failed note load does not autosave empty content over the real file`() {
+        val writes = mutableListOf<String>()
+        val store = object : com.patryksliwinski.quicknotes.data.NoteStore {
+            override suspend fun listNotes() = emptyList<com.patryksliwinski.quicknotes.data.NoteMeta>()
+            override suspend fun createNote() = throw UnsupportedOperationException()
+            override suspend fun createNoteWithContent(content: String) = throw UnsupportedOperationException()
+            override suspend fun restoreNote(name: String, content: String) = throw UnsupportedOperationException()
+            override suspend fun readNote(uri: String): String = throw java.io.IOException("volume unavailable")
+            override suspend fun readHead(uri: String, maxBytes: Int): String = throw java.io.IOException("volume unavailable")
+            override suspend fun writeNote(uri: String, content: String) { writes.add(content) }
+            override suspend fun deleteNote(uri: String) {}
+            override fun displayName() = "failing"
+        }
+        val repo = com.patryksliwinski.quicknotes.data.NoteRepository(app) { store to false }
+        val viewModel = EditorViewModel(app, repo)
+        val meta = NoteMeta("content://failing/doc1", "doc1.md", 0L, "doc1", "", size = 42L)
+        viewModel.open(meta)
+        waitFor { repo.errorMessage.value == com.patryksliwinski.quicknotes.data.NoteError.StorageError }
+        waitFor { viewModel.content.value == "" && viewModel.saveState.value == null }
+        assertTrue(viewModel.hasUnsavedChanges)
+        viewModel.onContentChange("typed after failure")
+        Thread.sleep(600)
+        assertTrue(writes.isEmpty())
+        assertEquals("typed after failure", viewModel.content.value)
+        viewModel.saveNow()
+        Thread.sleep(200)
+        assertTrue(writes.isEmpty())
+    }
+
+    @Test
     fun `hasUnsavedChanges is true after saveNow while a newer keystroke is still pending`() {
         val meta = seed("before")
         viewModel.open(meta)

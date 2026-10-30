@@ -21,4 +21,11 @@
     <string name="undo">Undo</string>
     <string name="untitled">Untitled</string>
     <string name="empty_notes">No notes yet. Tap + or use the home-screen widget.</string>
+    <string name="empty_search">No results for \"%1$s\"</string>
+    <string name="back">Back</string>
+    <string name="search">Search</string>
+    <string name="delete">Delete</string>
+    <string name="editor_placeholder">Start typing…</string>
+    <string name="editor_saving">Saving…</string>
+    <string name="editor_saved">Saved</string>
 </resources>

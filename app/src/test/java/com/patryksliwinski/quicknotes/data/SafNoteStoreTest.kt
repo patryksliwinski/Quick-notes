@@ -257,21 +257,21 @@ class SafNoteStoreTest {
                 if (parent != null && name != null) createCalls += parent to name
                 val result = createResult ?: return null
                 return android.os.Bundle().apply {
-                    putParcelable(DocumentsContract.EXTRA_URI, result)
+                    putParcelable("uri", result)
                 }
             }
             if (method == "android:deleteDocument") {
                 val uri = extras?.getParcelable<Uri>("uri")
                 if (uri != null) deleteCalls += method to uri
                 return android.os.Bundle().apply {
-                    putBoolean(DocumentsContract.EXTRA_RESULT, true)
+                    putBoolean("result", true)
                 }
             }
             if (method == "android:renameDocument") {
                 if (renameFails) return null
                 val uri = extras?.getParcelable<Uri>("uri")
                 return android.os.Bundle().apply {
-                    putParcelable(DocumentsContract.EXTRA_URI, uri)
+                    putParcelable("uri", uri)
                 }
             }
             return null

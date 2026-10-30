@@ -1,14 +1,17 @@
 package com.patryksliwinski.quicknotes.ui
 
 import android.content.Intent
-import android.net.Uri
+import com.patryksliwinski.quicknotes.data.EmptyResultNoteStore
 import com.patryksliwinski.quicknotes.data.InternalNoteStore
+import com.patryksliwinski.quicknotes.data.NoteError
 import com.patryksliwinski.quicknotes.data.NoteMeta
 import com.patryksliwinski.quicknotes.data.NoteRepository
+import com.patryksliwinski.quicknotes.data.NoteStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.resetMain
@@ -220,14 +223,14 @@ class SilentEmptyNoteStoreTest {
     fun `repository surfaces FolderUnavailable when a SAF-like store silently lists empty`() = kotlinx.coroutines.test.runTest {
         val repo = NoteRepository(context) { EmptyResultNoteStore() to false }
         repo.refresh()
-        assertEquals(com.patryksliwinski.quicknotes.data.NoteError.FolderUnavailable, repo.errorMessage.first())
+        assertEquals(NoteError.FolderUnavailable, repo.errorMessage.first())
         assertTrue(repo.notes.first().isEmpty())
     }
 
     @Test
     fun `repository readNote treats a silent empty read of a non-empty note as failure`() = kotlinx.coroutines.test.runTest {
         val meta = NoteMeta("content://empty/doc1", "doc1.md", 0L, "doc1", "", size = 42L)
-        val listed = object : com.patryksliwinski.quicknotes.data.NoteStore by EmptyResultNoteStore() {
+        val listed = object : NoteStore by EmptyResultNoteStore() {
             override suspend fun listNotes() = listOf(meta)
         }
         val repo = NoteRepository(context) { listed to false }
@@ -235,7 +238,7 @@ class SilentEmptyNoteStoreTest {
         repo.clearError()
         val result = repo.readNote(meta.uri)
         assertTrue(result.isFailure)
-        assertEquals(com.patryksliwinski.quicknotes.data.NoteError.StorageError, repo.errorMessage.first())
+        assertEquals(NoteError.StorageError, repo.errorMessage.first())
     }
 
     @Test

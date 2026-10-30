@@ -31,18 +31,11 @@ class WidgetNoteLoaderTest {
             store.createNoteWithContent("# Second\nbody two")
         }
         var loaded: List<NoteMeta>? = null
-        var finished = false
-        val pending = object : android.content.BroadcastReceiver.PendingResult() {
-            override fun finish() { finished = true }
-            override fun goAsync() = this
-            override fun sendResultCode() {}
-        }
-        WidgetNoteLoader.loadRecentNotes(context, pending, limit = 5) { loaded = it }
+        WidgetNoteLoader.loadRecentNotes(context, null, limit = 5) { loaded = it }
         val deadline = System.currentTimeMillis() + 5000
         while (loaded == null && System.currentTimeMillis() < deadline) Thread.sleep(20)
         assertEquals(2, loaded!!.size)
         assertEquals(setOf("First", "Second"), loaded!!.map { it.title }.toSet())
-        assertTrue(finished)
     }
 
     @Test

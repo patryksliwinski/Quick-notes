@@ -1,8 +1,12 @@
 package com.patryksliwinski.quicknotes.ui
 
+import com.patryksliwinski.quicknotes.data.DAY_KEY_TODAY
+import com.patryksliwinski.quicknotes.data.ListPrefs
 import com.patryksliwinski.quicknotes.data.NoteError
+import com.patryksliwinski.quicknotes.data.NoteListRow
 import com.patryksliwinski.quicknotes.data.NoteMeta
 import com.patryksliwinski.quicknotes.data.NoteRepository
+import com.patryksliwinski.quicknotes.data.NoteSortOrder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -39,6 +43,7 @@ class NotesViewModelTest {
         viewModel = NotesViewModel(app)
         collectorScope = CoroutineScope(Dispatchers.Unconfined)
         collectorJob = collectorScope.launch { viewModel.notes.collect { } }
+        collectorScope.launch { viewModel.listRows.collect { } }
     }
 
     @After
@@ -202,5 +207,70 @@ class NotesViewModelTest {
         viewModel.refresh()
         waitFor { viewModel.storageName.value.isNotEmpty() }
         assertFalse(viewModel.folderRevoked.value)
+    }
+
+    @Test
+    fun `query also matches the filename`() {
+        val meta = createWithContent("# Alpha", "first")
+        viewModel.refresh()
+        waitFor { viewModel.notes.value.size == 1 }
+        val datePart = meta.name.substringBefore('-')
+        viewModel.onQueryChange(datePart)
+        waitFor { viewModel.notes.value.size == 1 && viewModel.notes.value[0].uri == meta.uri }
+        viewModel.onQueryChange("no-such-filename-part")
+        waitFor { viewModel.notes.value.isEmpty() }
+        viewModel.onQueryChange("")
+        waitFor { viewModel.notes.value.size == 1 }
+    }
+
+    @Test
+    fun `sort order toggle reorders the visible list and persists`() {
+        createWithContent("# Apple", "one")
+        createWithContent("# Zebra", "two")
+        viewModel.refresh()
+        waitFor { viewModel.notes.value.size == 2 }
+        assertEquals(NoteSortOrder.LAST_MODIFIED, viewModel.sortOrder.value)
+        val byModified = viewModel.notes.value.map { it.title }
+        assertEquals(listOf("Zebra", "Apple"), byModified)
+        viewModel.onSortOrderChange(NoteSortOrder.TITLE)
+        waitFor { viewModel.notes.value.map { it.title } == listOf("Apple", "Zebra") }
+        assertEquals(listOf("Apple", "Zebra"), viewModel.notes.value.map { it.title })
+        assertEquals(NoteSortOrder.TITLE, ListPrefs.loadSortOrder(app))
+        viewModel.onSortOrderChange(NoteSortOrder.FILENAME_DATE)
+        waitFor { viewModel.notes.value.map { it.name } == viewModel.notes.value.map { it.name }.sortedDescending() }
+        assertEquals(NoteSortOrder.FILENAME_DATE, viewModel.sortOrder.value)
+        viewModel.onSortOrderChange(NoteSortOrder.LAST_MODIFIED)
+        waitFor { viewModel.notes.value.map { it.title } == byModified }
+    }
+
+    @Test
+    fun `sort order is restored from prefs on construction`() {
+        ListPrefs.saveSortOrder(app, NoteSortOrder.TITLE)
+        val restored = NotesViewModel(app)
+        assertEquals(NoteSortOrder.TITLE, restored.sortOrder.value)
+    }
+
+    @Test
+    fun `confirm delete toggle persists and defaults to false`() {
+        assertFalse(viewModel.confirmDelete.value)
+        viewModel.onConfirmDeleteChange(true)
+        assertTrue(viewModel.confirmDelete.value)
+        assertTrue(ListPrefs.loadConfirmDelete(app))
+        val restored = NotesViewModel(app)
+        assertTrue(restored.confirmDelete.value)
+        viewModel.onConfirmDeleteChange(false)
+        assertFalse(viewModel.confirmDelete.value)
+    }
+
+    @Test
+    fun `listRows groups notes under day headers`() {
+        createWithContent("# Alpha", "first")
+        createWithContent("# Beta", "second")
+        viewModel.refresh()
+        waitFor { viewModel.notes.value.size == 2 }
+        waitFor { viewModel.listRows.value.count { it is NoteListRow.Note } == 2 }
+        val rows = viewModel.listRows.value
+        assertEquals(NoteListRow.Header(DAY_KEY_TODAY), rows.first())
+        assertTrue(rows.all { it !is NoteListRow.Header || it.dayKey == DAY_KEY_TODAY })
     }
 }

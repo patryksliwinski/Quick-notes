@@ -18,6 +18,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -36,6 +37,7 @@ import com.patryksliwinski.quicknotes.R
 import com.patryksliwinski.quicknotes.data.AppTheme
 import com.patryksliwinski.quicknotes.data.EditorPrefs
 import com.patryksliwinski.quicknotes.data.FolderPrefs
+import com.patryksliwinski.quicknotes.data.NoteSortOrder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -48,6 +50,8 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val storageName by viewModel.storageName.collectAsState()
+    val sortOrder by viewModel.sortOrder.collectAsState()
+    val confirmDelete by viewModel.confirmDelete.collectAsState()
 
     val picker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -127,6 +131,28 @@ fun SettingsScreen(
                         val intent = android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT_TREE)
                         picker.launch(intent)
                     },
+            )
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_sort_order)) },
+                supportingContent = {
+                    Text(
+                        when (sortOrder) {
+                            NoteSortOrder.LAST_MODIFIED -> stringResource(R.string.sort_last_modified)
+                            NoteSortOrder.TITLE -> stringResource(R.string.sort_title)
+                            NoteSortOrder.FILENAME_DATE -> stringResource(R.string.sort_filename_date)
+                        }
+                    )
+                },
+            )
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_confirm_delete)) },
+                supportingContent = { Text(stringResource(R.string.settings_confirm_delete_summary)) },
+                trailingContent = {
+                    Switch(
+                        checked = confirmDelete,
+                        onCheckedChange = viewModel::onConfirmDeleteChange,
+                    )
+                },
             )
             ListItem(
                 headlineContent = { Text(stringResource(R.string.editor_font_size)) },

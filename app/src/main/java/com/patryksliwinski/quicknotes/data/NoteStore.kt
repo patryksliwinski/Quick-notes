@@ -286,6 +286,37 @@ object FolderPrefs {
     }
 }
 
+object ListPrefs {
+    private const val PREFS = "quicknotes_prefs"
+    private const val KEY_SORT_ORDER = "sort_order"
+    private const val KEY_CONFIRM_DELETE = "confirm_delete"
+
+    fun saveSortOrder(context: Context, order: NoteSortOrder) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putString(KEY_SORT_ORDER, order.name).apply()
+    }
+
+    fun loadSortOrder(context: Context): NoteSortOrder {
+        val stored = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString(KEY_SORT_ORDER, null) ?: return NoteSortOrder.LAST_MODIFIED
+        return try {
+            NoteSortOrder.valueOf(stored)
+        } catch (e: Exception) {
+            NoteSortOrder.LAST_MODIFIED
+        }
+    }
+
+    fun saveConfirmDelete(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putBoolean(KEY_CONFIRM_DELETE, enabled).apply()
+    }
+
+    fun loadConfirmDelete(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(KEY_CONFIRM_DELETE, false)
+    }
+}
+
 fun resolveNoteStore(context: Context): Pair<NoteStore, Boolean> {
     val uri = FolderPrefs.loadFolderUri(context)
     if (uri != null && FolderPrefs.hasPersistedPermission(context, uri)) {

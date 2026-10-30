@@ -17,6 +17,11 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+enum class SaveState {
+    Saving,
+    Saved,
+}
+
 class EditorViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = NoteRepository(application)
@@ -24,6 +29,9 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _content = MutableStateFlow("")
     val content: StateFlow<String> = _content
+
+    private val _saveState = MutableStateFlow<SaveState?>(null)
+    val saveState: StateFlow<SaveState?> = _saveState
 
     val stats: StateFlow<TextStats> = _content
         .map { computeStats(it) }
@@ -47,6 +55,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         if (noteUri == meta.uri && _content.value.isNotEmpty()) return
         noteUri = meta.uri
         saveJob?.cancel()
+        _saveState.value = null
         undoStack.reset()
         lastSaved = ""
         restoring = false
@@ -55,6 +64,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
             val text = repository.readNote(meta.uri)
             _content.value = text
             lastSaved = text
+            _saveState.value = SaveState.Saved
             _fontSizeSp.value = withContext(Dispatchers.IO) {
                 EditorPrefs.loadFontSizeSp(getApplication())
             }
@@ -84,9 +94,11 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         val uri = noteUri ?: return
         saveJob?.cancel()
         val text = _content.value
+        _saveState.value = SaveState.Saving
         viewModelScope.launch {
             commitSnapshot(text)
             repository.writeNote(uri, text)
+            _saveState.value = SaveState.Saved
         }
     }
 
@@ -99,6 +111,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     private fun scheduleSave(text: String, restoring: Boolean = false) {
         val uri = noteUri ?: return
         this.restoring = restoring
+        _saveState.value = SaveState.Saving
         saveJob?.cancel()
         saveJob = viewModelScope.launch {
             val debounce = withContext(Dispatchers.IO) {
@@ -107,6 +120,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
             delay(debounce)
             commitSnapshot(text)
             repository.writeNote(uri, text)
+            _saveState.value = SaveState.Saved
         }
     }
 

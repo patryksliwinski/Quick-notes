@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
+import com.patryksliwinski.quicknotes.R
 import com.patryksliwinski.quicknotes.ui.MainActivity
 
 class QuickNoteTileService : TileService() {
@@ -12,7 +13,7 @@ class QuickNoteTileService : TileService() {
     override fun onStartListening() {
         qsTile?.apply {
             state = Tile.STATE_INACTIVE
-            label = "New note"
+            label = getString(R.string.widget_new_note)
             updateTile()
         }
     }

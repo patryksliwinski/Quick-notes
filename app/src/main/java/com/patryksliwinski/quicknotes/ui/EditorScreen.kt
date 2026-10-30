@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.patryksliwinski.quicknotes.R
@@ -50,6 +51,7 @@ fun EditorScreen(
 ) {
     val context = LocalContext.current
     val content by viewModel.content.collectAsState()
+    val saveState by viewModel.saveState.collectAsState()
     val stats by viewModel.stats.collectAsState()
     val canUndo by viewModel.canUndo.collectAsState()
     val canRedo by viewModel.canRedo.collectAsState()
@@ -63,7 +65,13 @@ fun EditorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(noteTitle) },
+                title = {
+                    Text(
+                        text = noteTitle,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = {
                         viewModel.saveNow()
@@ -76,6 +84,17 @@ fun EditorScreen(
                     }
                 },
                 actions = {
+                    val savedText = when (saveState) {
+                        SaveState.Saving -> stringResource(R.string.editor_saving)
+                        SaveState.Saved -> stringResource(R.string.editor_saved)
+                        null -> ""
+                    }
+                    Text(
+                        text = savedText,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
                     IconButton(onClick = viewModel::undo, enabled = canUndo) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Undo,
@@ -153,7 +172,7 @@ fun EditorScreen(
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
                 ),
-                placeholder = { Text(stringResource(R.string.start_typing)) },
+                placeholder = { Text(stringResource(R.string.editor_placeholder)) },
             )
             Text(
                 text = stringResource(R.string.word_count, stats.words, stats.characters),

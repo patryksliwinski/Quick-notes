@@ -92,7 +92,7 @@ fun SettingsScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back)
+                            contentDescription = stringResource(R.string.back),
                         )
                     }
                 },
@@ -108,11 +108,16 @@ fun SettingsScreen(
             ListItem(
                 headlineContent = { Text(stringResource(R.string.storage_folder)) },
                 supportingContent = {
-                    Text(storageName.ifEmpty { stringResource(R.string.folder_default) })
+                    Column {
+                        Text(stringResource(R.string.storage_folder_summary))
+                        Text(
+                            storageName.ifEmpty { stringResource(R.string.folder_default) }
+                        )
+                    }
                 },
                 trailingContent = {
                     Text(
-                        text = stringResource(R.string.change),
+                        text = stringResource(R.string.pick_folder),
                         modifier = Modifier.padding(8.dp),
                     )
                 },

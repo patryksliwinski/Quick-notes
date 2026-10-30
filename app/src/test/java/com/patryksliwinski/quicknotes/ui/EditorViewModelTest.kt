@@ -251,4 +251,35 @@ class EditorViewModelTest {
         assertTrue(fileOf(meta).readText() != "slow save")
         waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "slow save" }
     }
+
+    @Test
+    fun `open marks note as saved once content is loaded`() {
+        val meta = seed("hello")
+        viewModel.open(meta)
+        waitFor { viewModel.saveState.value == SaveState.Saved }
+    }
+
+    @Test
+    fun `onContentChange reports saving then saved after autosave`() {
+        val meta = seed("")
+        viewModel.open(meta)
+        waitFor { viewModel.saveState.value == SaveState.Saved }
+        viewModel.onContentChange("typing")
+        assertEquals(SaveState.Saving, viewModel.saveState.value)
+        waitFor(timeoutMs = 5000) {
+            viewModel.saveState.value == SaveState.Saved && fileOf(meta).readText() == "typing"
+        }
+    }
+
+    @Test
+    fun `saveNow reports saving then saved`() {
+        val meta = seed("before")
+        viewModel.open(meta)
+        waitFor { viewModel.saveState.value == SaveState.Saved }
+        viewModel.onContentChange("now")
+        viewModel.saveNow()
+        waitFor(timeoutMs = 5000) {
+            viewModel.saveState.value == SaveState.Saved && fileOf(meta).readText() == "now"
+        }
+    }
 }

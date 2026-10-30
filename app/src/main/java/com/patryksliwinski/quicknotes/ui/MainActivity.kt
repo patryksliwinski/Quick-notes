@@ -4,7 +4,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -13,7 +16,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.patryksliwinski.quicknotes.data.AppTheme
+import com.patryksliwinski.quicknotes.data.EditorPrefs
 import com.patryksliwinski.quicknotes.data.NoteMeta
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 sealed interface Screen {
     data object List : Screen
@@ -31,13 +38,21 @@ class MainActivity : ComponentActivity() {
             intent.getStringExtra(EXTRA_NOTE_URI)?.let { pendingOpenNote = noteMetaFromUri(it) }
         }
         setContent {
-            MaterialTheme {
+            var theme by remember { mutableStateOf(AppTheme.SYSTEM) }
+            LaunchedEffect(Unit) {
+                val loaded = withContext(Dispatchers.IO) {
+                    EditorPrefs.loadTheme(this@MainActivity)
+                }
+                theme = loaded
+            }
+            AppThemeHost(theme) {
                 AppRoot(
                     notesViewModel,
                     handleNewNote = intent?.action == ACTION_NEW_NOTE ||
                         intent?.action == ACTION_OPEN_NOTE ||
                         pendingNewNote != null || pendingOpenNote != null,
                     pendingNote = pendingOpenNote ?: pendingNewNote,
+                    onThemeChanged = { theme = it },
                 ) { handled ->
                     if (handled) {
                         intent = intent?.setAction(null)
@@ -101,6 +116,7 @@ fun AppRoot(
     notesViewModel: NotesViewModel,
     handleNewNote: Boolean,
     pendingNote: NoteMeta?,
+    onThemeChanged: (AppTheme) -> Unit = {},
     onHandled: (Boolean) -> Unit,
 ) {
     var screen by remember { mutableStateOf<Screen>(Screen.List) }
@@ -138,6 +154,20 @@ fun AppRoot(
         Screen.Settings -> SettingsScreen(
             viewModel = notesViewModel,
             onBack = { screen = Screen.List },
+            onThemeChanged = onThemeChanged,
         )
     }
+}
+
+@Composable
+fun AppThemeHost(theme: AppTheme, content: @Composable () -> Unit) {
+    val dark = when (theme) {
+        AppTheme.SYSTEM -> isSystemInDarkTheme()
+        AppTheme.LIGHT -> false
+        AppTheme.DARK -> true
+    }
+    MaterialTheme(
+        colorScheme = if (dark) darkColorScheme() else lightColorScheme(),
+        content = content,
+    )
 }

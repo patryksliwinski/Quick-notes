@@ -3,11 +3,14 @@ package com.patryksliwinski.quicknotes.ui
 import com.patryksliwinski.quicknotes.data.InternalNoteStore
 import com.patryksliwinski.quicknotes.data.NoteMeta
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -130,5 +133,121 @@ class EditorViewModelTest {
     @Test
     fun `saveNow without open note does not crash`() {
         viewModel.saveNow()
+    }
+
+    @Test
+    fun `stats flow derives word and char count from content`() {
+        val meta = seed("")
+        viewModel.open(meta)
+        waitFor { viewModel.content.value == "" }
+        val scope = kotlinx.coroutines.CoroutineScope(Dispatchers.Unconfined)
+        val seen = mutableListOf<TextStats>()
+        val job = scope.launch { viewModel.stats.collect { seen += it } }
+        viewModel.onContentChange("one two three")
+        waitFor { seen.any { it == TextStats(words = 3, characters = 13) } }
+        viewModel.onContentChange("")
+        waitFor { seen.any { it == TextStats(words = 0, characters = 0) } }
+        job.cancel()
+        scope.cancel()
+    }
+
+    @Test
+    fun `insertTimestamp appends formatted line through normal save path`() {
+        val meta = seed("note body")
+        viewModel.open(meta)
+        waitFor { viewModel.content.value == "note body" }
+        viewModel.insertTimestamp()
+        val after = viewModel.content.value
+        assertTrue(after.startsWith("note body\n"))
+        val line = after.trimEnd().substringAfterLast('\n')
+        assertTrue(Regex("""\d{4}-\d{2}-\d{2} \d{2}:\d{2}""").matches(line))
+        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == after }
+    }
+
+    @Test
+    fun `undo restores previous content and persists it via autosave`() {
+        val meta = seed("")
+        viewModel.open(meta)
+        waitFor { viewModel.content.value == "" }
+        viewModel.onContentChange("typed text")
+        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "typed text" }
+        assertTrue(viewModel.canUndo.value)
+        viewModel.undo()
+        assertEquals("", viewModel.content.value)
+        assertFalse(viewModel.canUndo.value)
+        assertTrue(viewModel.canRedo.value)
+        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "" }
+    }
+
+    @Test
+    fun `redo reapplies undone content and persists it`() {
+        val meta = seed("")
+        viewModel.open(meta)
+        waitFor { viewModel.content.value == "" }
+        viewModel.onContentChange("typed text")
+        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "typed text" }
+        viewModel.undo()
+        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "" }
+        viewModel.redo()
+        assertEquals("typed text", viewModel.content.value)
+        assertTrue(viewModel.canUndo.value)
+        assertFalse(viewModel.canRedo.value)
+        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "typed text" }
+    }
+
+    @Test
+    fun `undo with empty history is a no-op`() {
+        val meta = seed("stable")
+        viewModel.open(meta)
+        waitFor { viewModel.content.value == "stable" }
+        viewModel.undo()
+        viewModel.redo()
+        assertEquals("stable", viewModel.content.value)
+        assertFalse(viewModel.canUndo.value)
+        assertFalse(viewModel.canRedo.value)
+    }
+
+    @Test
+    fun `new change after undo clears redo stack`() {
+        val meta = seed("")
+        viewModel.open(meta)
+        waitFor { viewModel.content.value == "" }
+        viewModel.onContentChange("first")
+        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "first" }
+        viewModel.undo()
+        assertTrue(viewModel.canRedo.value)
+        viewModel.onContentChange("branch")
+        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "branch" }
+        assertFalse(viewModel.canRedo.value)
+        viewModel.redo()
+        assertEquals("branch", viewModel.content.value)
+    }
+
+    @Test
+    fun `opening another note resets undo stack`() {
+        val a = seed("note a")
+        val b = seed("note b")
+        viewModel.open(a)
+        waitFor { viewModel.content.value == "note a" }
+        viewModel.onContentChange("note a edited")
+        waitFor(timeoutMs = 5000) { fileOf(a).readText() == "note a edited" }
+        assertTrue(viewModel.canUndo.value)
+        viewModel.open(b)
+        waitFor { viewModel.content.value == "note b" }
+        assertFalse(viewModel.canUndo.value)
+        assertFalse(viewModel.canRedo.value)
+    }
+
+    @Test
+    fun `configurable debounce is honored`() {
+        app.getSharedPreferences("quicknotes_prefs", android.content.Context.MODE_PRIVATE)
+            .edit().putLong("editor_autosave_debounce_ms", 1000L).commit()
+        val meta = seed("")
+        viewModel.open(meta)
+        waitFor { viewModel.content.value == "" }
+        viewModel.onContentChange("slow save")
+        Thread.sleep(500)
+        assertTrue(fileOf(meta).readText() != "slow save")
+        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "slow save" }
     }
 }

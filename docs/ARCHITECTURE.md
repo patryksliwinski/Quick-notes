@@ -6,14 +6,17 @@
 app/src/main/java/com/patryksliwinski/quicknotes/
 ├── data/
 │   ├── NoteStore.kt        # NoteStore interface + InternalNoteStore + SafNoteStore, folder prefs, filename/title helpers
-│   └── NoteRepository.kt   # single source of truth: in-memory StateFlow<List<NoteMeta>>, optimistic mutations
+│   ├── NoteRepository.kt   # single source of truth: in-memory StateFlow<List<NoteMeta>>, optimistic mutations
+│   └── EditorPrefs.kt      # editor font size / autosave debounce / theme in SharedPreferences (reads off the main thread)
 ├── ui/
 │   ├── MainActivity.kt     # single activity, screen state machine (List / Editor / Settings), ACTION_NEW_NOTE / ACTION_OPEN_NOTE
 │   ├── NotesListScreen.kt  # search field + LazyColumn + swipe-to-delete + undo snackbar
 │   ├── NotesViewModel.kt
-│   ├── EditorScreen.kt     # monospace TextField, debounced autosave
-│   ├── EditorViewModel.kt  # 400 ms debounce, saveNow() on dispose/back
-│   └── SettingsScreen.kt   # SAF folder picker (ACTION_OPEN_DOCUMENT_TREE + persisted URI permission)
+│   ├── EditorScreen.kt     # monospace TextField, debounced autosave, undo/redo + overflow (timestamp/share/copy), word-count status line
+│   ├── EditorViewModel.kt  # configurable debounce, in-memory UndoStack (≤50), stats derived from content, saveNow() on dispose/back
+│   ├── UndoStack.kt        # pure in-memory undo/redo history (unit-tested)
+│   ├── EditorText.kt       # pure TextStats + timestamp-line helpers (unit-tested)
+│   └── SettingsScreen.kt   # SAF folder picker (ACTION_OPEN_DOCUMENT_TREE + persisted URI permission) + font size / debounce / theme rows
 ├── receiver/
 │   ├── BaseWidgetProvider.kt   # abstract AppWidgetProvider: builds RemoteViews, applies shared widget_background, attaches PendingIntents, pushes updates
 │   ├── NewNoteWidgetProvider.kt     # home-screen widget -> ACTION_NEW_NOTE (extends the base)
@@ -27,7 +30,7 @@ app/src/main/java/com/patryksliwinski/quicknotes/
 1. `NoteRepository.refresh()` resolves the active `NoteStore` (SAF tree if a persisted writable URI permission exists, else internal dir) and loads `List<NoteMeta>` (uri, name, mtime, title, snippet) into a `StateFlow`.
 2. The list screen renders from that flow; search is a `combine()` filter over it — no disk access.
 3. Create: optimistic insert into the flow + background `store.createNote()` (empty file). Editor opens immediately.
-4. Edit: `EditorViewModel.onContentChange` debounces 400 ms, then `repository.writeNote` on `Dispatchers.IO`; the flow entry's title/snippet/mtime update optimistically in-memory.
+4. Edit: `EditorViewModel.onContentChange` debounces (400 ms default, configurable in Settings), then `repository.writeNote` on `Dispatchers.IO`; the flow entry's title/snippet/mtime update optimistically in-memory. Undo/redo snapshots are kept in a capped in-memory `UndoStack` (snapshot per debounced save, ≤50) — never on disk; word/char count is a pure derivation over the same `content` flow.
 5. Delete: remove from flow instantly, delete the document on `Dispatchers.IO`, keep the last deleted note for one-tap undo (restores the file with original content).
 6. `onResume` re-runs `refresh()` — this is how externally synced changes appear (no FileObserver on SAF paths).
 7. `NoteRepository` create/edit/delete/restore broadcast a package-scoped `ACTION_REFRESH`, which `RecentNotesWidgetProvider` answers by re-running `onUpdate` (goAsync + `Dispatchers.IO`) — widgets never rescan per keystroke, only on mutations and host updates.

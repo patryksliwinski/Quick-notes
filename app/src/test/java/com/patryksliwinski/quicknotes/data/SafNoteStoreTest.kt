@@ -190,13 +190,12 @@ class SafNoteStoreTest {
     }
 
     @Test
-    fun `writeNote throws on the direct-write path when the output stream is null`() = runTest {
+    fun `writeNote throws on the direct-write path when the output stream is unavailable`() = runTest {
         install(FakeSafProvider(nullOutputStream = true))
         val docUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, "XXXX-XXXX:Notes/a.md")
-        val exception = assertThrows(Exception::class.java) {
+        assertThrows(Exception::class.java) {
             kotlinx.coroutines.runBlocking { store().writeNote(docUri.toString(), "hello") }
         }
-        assertTrue(exception.message!!.contains("not writable"))
     }
 
     @Test

@@ -61,7 +61,8 @@ class EditorViewModelTest {
 
     private fun fileOf(meta: NoteMeta) = java.io.File(java.net.URI(meta.uri))
 
-    private fun fileExists(meta: NoteMeta) = fileOf(meta).isFile
+    private fun readIfExists(meta: NoteMeta): String? =
+        fileOf(meta).takeIf { it.isFile }?.readText()
 
     @Test
     fun `open loads note content`() {
@@ -106,7 +107,7 @@ class EditorViewModelTest {
         viewModel.open(meta)
         waitFor { viewModel.content.value == "" }
         viewModel.onContentChange("autosaved")
-        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "autosaved" }
+        waitFor(timeoutMs = 5000) { readIfExists(meta) == "autosaved" }
     }
 
     @Test
@@ -117,7 +118,7 @@ class EditorViewModelTest {
         viewModel.onContentChange("first")
         viewModel.onContentChange("second")
         viewModel.onContentChange("final")
-        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "final" }
+        waitFor(timeoutMs = 5000) { readIfExists(meta) == "final" }
     }
 
     @Test
@@ -127,7 +128,7 @@ class EditorViewModelTest {
         waitFor { viewModel.content.value == "before" }
         viewModel.onContentChange("now")
         viewModel.saveNow()
-        waitFor { fileOf(meta).readText() == "now" }
+        waitFor { readIfExists(meta) == "now" }
     }
 
     @Test
@@ -167,7 +168,7 @@ class EditorViewModelTest {
         assertTrue(after.startsWith("note body\n"))
         val line = after.trimEnd().substringAfterLast('\n')
         assertTrue(Regex("""\d{4}-\d{2}-\d{2} \d{2}:\d{2}""").matches(line))
-        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == after }
+        waitFor(timeoutMs = 5000) { readIfExists(meta) == after }
     }
 
     @Test
@@ -176,13 +177,13 @@ class EditorViewModelTest {
         viewModel.open(meta)
         waitFor { viewModel.content.value == "" }
         viewModel.onContentChange("typed text")
-        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "typed text" }
+        waitFor(timeoutMs = 5000) { readIfExists(meta) == "typed text" }
         assertTrue(viewModel.canUndo.value)
         viewModel.undo()
         assertEquals("", viewModel.content.value)
         assertFalse(viewModel.canUndo.value)
         assertTrue(viewModel.canRedo.value)
-        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "" }
+        waitFor(timeoutMs = 5000) { readIfExists(meta) == "" }
     }
 
     @Test
@@ -191,18 +192,18 @@ class EditorViewModelTest {
         viewModel.open(meta)
         waitFor { viewModel.content.value == "" }
         viewModel.onContentChange("typed text")
-        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "typed text" }
+        waitFor(timeoutMs = 5000) { readIfExists(meta) == "typed text" }
         viewModel.saveNow()
         viewModel.undo()
         assertEquals("", viewModel.content.value)
         viewModel.saveNow()
-        waitFor(timeoutMs = 5000) { fileExists(meta) && fileOf(meta).readText() == "" }
+        waitFor(timeoutMs = 5000) { readIfExists(meta) == "" }
         viewModel.redo()
         assertEquals("typed text", viewModel.content.value)
         assertTrue(viewModel.canUndo.value)
         assertFalse(viewModel.canRedo.value)
         viewModel.saveNow()
-        waitFor(timeoutMs = 5000) { fileExists(meta) && fileOf(meta).readText() == "typed text" }
+        waitFor(timeoutMs = 5000) { readIfExists(meta) == "typed text" }
     }
 
     @Test
@@ -223,11 +224,11 @@ class EditorViewModelTest {
         viewModel.open(meta)
         waitFor { viewModel.content.value == "" }
         viewModel.onContentChange("first")
-        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "first" }
+        waitFor(timeoutMs = 5000) { readIfExists(meta) == "first" }
         viewModel.undo()
         assertTrue(viewModel.canRedo.value)
         viewModel.onContentChange("branch")
-        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "branch" }
+        waitFor(timeoutMs = 5000) { readIfExists(meta) == "branch" }
         assertFalse(viewModel.canRedo.value)
         viewModel.redo()
         assertEquals("branch", viewModel.content.value)
@@ -240,7 +241,7 @@ class EditorViewModelTest {
         viewModel.open(a)
         waitFor { viewModel.content.value == "note a" }
         viewModel.onContentChange("note a edited")
-        waitFor(timeoutMs = 5000) { fileOf(a).readText() == "note a edited" }
+        waitFor(timeoutMs = 5000) { readIfExists(a) == "note a edited" }
         assertTrue(viewModel.canUndo.value)
         viewModel.open(b)
         waitFor { viewModel.content.value == "note b" }
@@ -258,10 +259,10 @@ class EditorViewModelTest {
         viewModel.onContentChange("slow save")
         val earlyDeadline = System.currentTimeMillis() + 500
         while (System.currentTimeMillis() < earlyDeadline) {
-            if (fileOf(meta).readText() == "slow save") break
+            if (readIfExists(meta) == "slow save") break
         }
-        assertTrue(fileOf(meta).readText() != "slow save")
-        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "slow save" }
+        assertTrue(readIfExists(meta) != "slow save")
+        waitFor(timeoutMs = 5000) { readIfExists(meta) == "slow save" }
     }
 
     @Test
@@ -279,7 +280,7 @@ class EditorViewModelTest {
         viewModel.onContentChange("typing")
         assertEquals(SaveState.Saving, viewModel.saveState.value)
         waitFor(timeoutMs = 5000) {
-            viewModel.saveState.value == SaveState.Saved && fileOf(meta).readText() == "typing"
+            viewModel.saveState.value == SaveState.Saved && readIfExists(meta) == "typing"
         }
     }
 
@@ -291,7 +292,7 @@ class EditorViewModelTest {
         viewModel.onContentChange("now")
         viewModel.saveNow()
         waitFor(timeoutMs = 5000) {
-            viewModel.saveState.value == SaveState.Saved && fileOf(meta).readText() == "now"
+            viewModel.saveState.value == SaveState.Saved && readIfExists(meta) == "now"
         }
     }
 
@@ -300,14 +301,14 @@ class EditorViewModelTest {
         val meta = seed("")
         viewModel.open(meta, prefill = "shared from another app")
         assertEquals("shared from another app", viewModel.content.value)
-        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "shared from another app" }
+        waitFor(timeoutMs = 5000) { readIfExists(meta) == "shared from another app" }
     }
 
     @Test
     fun `open with prefill does not overwrite with a blocking read of the empty file`() {
         val meta = seed("")
         viewModel.open(meta, prefill = "prefilled")
-        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "prefilled" }
+        waitFor(timeoutMs = 5000) { readIfExists(meta) == "prefilled" }
         assertEquals("prefilled", viewModel.content.value)
     }
 
@@ -321,8 +322,8 @@ class EditorViewModelTest {
         waitFor { duplicated != null }
         assertTrue(duplicated!!.uri != original.uri)
         assertTrue(Regex("""\d{8}-\d{6}-[a-z0-9]{4}\.md""").matches(duplicated!!.name))
-        waitFor(timeoutMs = 5000) { fileOf(duplicated!!).readText() == "# Original\nbody" }
-        assertEquals("# Original\nbody", fileOf(original).readText())
+        waitFor(timeoutMs = 5000) { readIfExists(duplicated!!) == "# Original\nbody" }
+        assertEquals("# Original\nbody", readIfExists(original))
     }
 
     @Test
@@ -347,7 +348,7 @@ class EditorViewModelTest {
         waitFor { viewModel.saveState.value == SaveState.Saved }
         viewModel.onContentChange("typed")
         assertEquals(true, viewModel.hasUnsavedChanges)
-        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "typed" }
+        waitFor(timeoutMs = 5000) { readIfExists(meta) == "typed" }
         waitFor { viewModel.hasUnsavedChanges == false }
     }
 
@@ -358,10 +359,10 @@ class EditorViewModelTest {
         waitFor { viewModel.content.value == "before" }
         viewModel.onContentChange("first")
         viewModel.saveNow()
-        waitFor { fileOf(meta).readText() == "first" }
+        waitFor { readIfExists(meta) == "first" }
         viewModel.onContentChange("second")
         assertEquals(true, viewModel.hasUnsavedChanges)
-        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "second" }
+        waitFor(timeoutMs = 5000) { readIfExists(meta) == "second" }
         waitFor { viewModel.hasUnsavedChanges == false }
     }
 }

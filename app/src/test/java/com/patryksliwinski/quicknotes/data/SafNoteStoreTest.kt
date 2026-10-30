@@ -165,6 +165,40 @@ class SafNoteStoreTest {
     }
 
     @Test
+    fun `listNotes sorts by last modified even when the provider ignores the sort hint`() = runTest {
+        val rows = listOf(
+            arrayOf("XXXX-XXXX:Notes/old.md", "old.md", "1700000000000", "10"),
+            arrayOf("XXXX-XXXX:Notes/new.md", "new.md", "1800000000000", "10"),
+            arrayOf("XXXX-XXXX:Notes/mid.md", "mid.md", "1750000000000", "10"),
+        )
+        install(FakeSafProvider(childrenRows = rows))
+        val notes = store().listNotes()
+        assertEquals(listOf("new.md", "mid.md", "old.md"), notes.map { it.name })
+    }
+
+    @Test
+    fun `writeNote throws when the tmp output stream is null so the note is not truncated`() = runTest {
+        val provider = FakeSafProvider(displayName = "a.md", nullOutputStream = true)
+        install(provider)
+        val docUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, "XXXX-XXXX:Notes/a.md")
+        val exception = assertThrows(Exception::class.java) {
+            kotlinx.coroutines.runBlocking { store().writeNote(docUri.toString(), "hello") }
+        }
+        assertTrue(exception.message!!.contains("not writable"))
+        assertTrue(provider.callMethods.none { it == "android:renameDocument" })
+    }
+
+    @Test
+    fun `writeNote throws on the direct-write path when the output stream is null`() = runTest {
+        install(FakeSafProvider(nullOutputStream = true))
+        val docUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, "XXXX-XXXX:Notes/a.md")
+        val exception = assertThrows(Exception::class.java) {
+            kotlinx.coroutines.runBlocking { store().writeNote(docUri.toString(), "hello") }
+        }
+        assertTrue(exception.message!!.contains("not writable"))
+    }
+
+    @Test
     fun `listNotes heals orphan tmp and bak documents during the scan`() = runTest {
         val rows = listOf(
             arrayOf("XXXX-XXXX:Notes/a.md", "a.md", "1700000000000", "10"),
@@ -229,6 +263,7 @@ class SafNoteStoreTest {
         var createResult: Uri? = null,
         var queryFails: Boolean = false,
         var renameFails: Boolean = false,
+        var nullOutputStream: Boolean = false,
     ) : ContentProvider() {
         val createCalls = mutableListOf<Pair<Uri, String>>()
         val callMethods = mutableListOf<String>()
@@ -314,7 +349,9 @@ class SafNoteStoreTest {
             if (openFileFails) throw java.io.FileNotFoundException("volume unavailable")
             val file = java.io.File.createTempFile("saf", ".tmp")
             file.deleteOnExit()
-            shadowOf(context!!.contentResolver).registerOutputStream(uri, java.io.FileOutputStream(file))
+            if (!nullOutputStream) {
+                shadowOf(context!!.contentResolver).registerOutputStream(uri, java.io.FileOutputStream(file))
+            }
             val pfd = android.os.ParcelFileDescriptor.open(file, android.os.ParcelFileDescriptor.MODE_READ_WRITE)
             return android.content.res.AssetFileDescriptor(pfd, 0, file.length())
         }

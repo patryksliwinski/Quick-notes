@@ -12,8 +12,8 @@ class NoteListLogicTest {
         set(Calendar.MILLISECOND, 0)
     }.timeInMillis
 
-    private fun note(name: String, lastModified: Long, title: String = name, snippet: String = ""): NoteMeta =
-        NoteMeta(uri = "file:///notes/$name", name = name, lastModified = lastModified, title = title, snippet = snippet)
+    private fun note(name: String, lastModified: Long, title: String = name, snippet: String = "", content: String = ""): NoteMeta =
+        NoteMeta(uri = "file:///notes/$name", name = name, lastModified = lastModified, title = title, snippet = snippet, content = content)
 
     @Test
     fun `sort by last modified is descending`() {
@@ -61,6 +61,14 @@ class NoteListLogicTest {
         assertEquals(listOf(b), filterNotes(listOf(a, b), "20260615"))
         assertEquals(listOf(b), filterNotes(listOf(a, b), "ZZZZ.MD"))
         assertTrue(filterNotes(listOf(a, b), "no-such-file").isEmpty())
+    }
+
+    @Test
+    fun `filter matches full note content case-insensitively`() {
+        val a = note("a.md", 1, title = "Alpha", snippet = "first", content = "# Alpha\nfirst\nneedle deep in body")
+        val b = note("b.md", 2, title = "Beta", snippet = "second", content = "# Beta\nsecond")
+        assertEquals(listOf(a), filterNotes(listOf(a, b), "NEEDLE"))
+        assertTrue(filterNotes(listOf(a, b), "absent").isEmpty())
     }
 
     @Test

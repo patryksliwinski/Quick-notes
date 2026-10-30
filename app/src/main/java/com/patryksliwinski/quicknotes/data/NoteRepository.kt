@@ -38,6 +38,7 @@ class NoteRepository(
     private var store: NoteStore = InternalNoteStore(context.filesDir.resolve("notes"))
     private val journal = PendingSaveJournal(context)
     private val headCache = ConcurrentHashMap<HeadKey, HeadFields>()
+    private val contentCache = ConcurrentHashMap<HeadKey, String>()
     private val _notes = MutableStateFlow<List<NoteMeta>>(emptyList())
     val notes: StateFlow<List<NoteMeta>> = _notes
     private val _folderRevoked = MutableStateFlow(false)
@@ -82,29 +83,45 @@ class NoteRepository(
     }
 
     private suspend fun enrichHeads(listed: List<NoteMeta>): List<NoteMeta> {
-        val next = HashMap<HeadKey, HeadFields>(listed.size * 2)
+        val nextHeads = HashMap<HeadKey, HeadFields>(listed.size * 2)
+        val nextContents = HashMap<HeadKey, String>(listed.size * 2)
         val enriched = listed.map { meta ->
             val key = HeadKey(meta.uri, meta.lastModified, meta.size)
-            val cached = headCache[key]
-            val fields = if (cached != null) {
-                next[key] = cached
-                cached
+            val cachedHead = headCache[key]
+            val cachedContent = contentCache[key]
+            val fields: HeadFields
+            val content: String
+            if (cachedHead != null && cachedContent != null) {
+                nextHeads[key] = cachedHead
+                nextContents[key] = cachedContent
+                fields = cachedHead
+                content = cachedContent
             } else {
-                val head = try {
-                    store.readHead(meta.uri)
+                val full = try {
+                    store.readNote(meta.uri)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     null
                 }
-                val derived = deriveHead(meta.name, head.orEmpty())
-                if (!head.isNullOrEmpty()) next[key] = derived
-                derived
+                if (!full.isNullOrEmpty()) {
+                    val derived = deriveHead(meta.name, full.take(HEAD_BYTES))
+                    nextHeads[key] = derived
+                    nextContents[key] = full
+                    fields = derived
+                    content = full
+                } else {
+                    val derived = deriveHead(meta.name, "")
+                    fields = derived
+                    content = ""
+                }
             }
-            meta.copy(title = fields.title, snippet = fields.snippet)
+            meta.copy(title = fields.title, snippet = fields.snippet, content = content)
         }
         headCache.clear()
-        headCache.putAll(next)
+        headCache.putAll(nextHeads)
+        contentCache.clear()
+        contentCache.putAll(nextContents)
         return enriched
     }
 
@@ -210,8 +227,10 @@ class NoteRepository(
             snippet = fields.snippet,
             lastModified = now,
             size = content.toByteArray(Charsets.UTF_8).size.toLong(),
+            content = content,
         )
         headCache[HeadKey(uri, now, updated.size)] = fields
+        contentCache[HeadKey(uri, now, updated.size)] = content
         val others = current.filterIndexed { i, _ -> i != index }
         return if (others.any { it.lastModified > now }) {
             (others + updated).sortedByDescending { it.lastModified }

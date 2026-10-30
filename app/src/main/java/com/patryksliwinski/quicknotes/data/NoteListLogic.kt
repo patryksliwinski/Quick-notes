@@ -31,7 +31,8 @@ fun filterNotes(notes: List<NoteMeta>, query: String): List<NoteMeta> {
     return notes.filter { note ->
         note.title.lowercase(Locale.ROOT).contains(q) ||
             note.snippet.lowercase(Locale.ROOT).contains(q) ||
-            note.name.lowercase(Locale.ROOT).contains(q)
+            note.name.lowercase(Locale.ROOT).contains(q) ||
+            note.content.lowercase(Locale.ROOT).contains(q)
     }
 }
 

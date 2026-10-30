@@ -30,5 +30,6 @@ fun noteMetaFromUri(uri: String): NoteMeta {
         lastModified = 0L,
         title = name.removeSuffix(".md"),
         snippet = "",
+        content = "",
     )
 }

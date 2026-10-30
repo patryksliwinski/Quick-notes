@@ -343,25 +343,26 @@ class NoteRepositoryTest {
     }
 
     @Test
-    fun `refresh reads heads only once per unchanged file across refreshes`() = runTest {
+    fun `refresh reads full content only once per unchanged file across refreshes`() = runTest {
         val counting = CountingNoteStore(context.filesDir.resolve("notes"))
         val repo = NoteRepository(context) { counting to false }
         repo.refresh()
         val meta = repo.createNote()!!
         repo.writeNote(meta.uri, "# Cached\nbody")
         repo.refresh()
-        val readsAfterFirstRefresh = counting.headReads.get()
+        val readsAfterFirstRefresh = counting.fullReads.get()
         repo.refresh()
         repo.refresh()
-        assertEquals(readsAfterFirstRefresh, counting.headReads.get())
+        assertEquals(readsAfterFirstRefresh, counting.fullReads.get())
         val notes = repo.notes.first()
         assertEquals(1, notes.size)
         assertEquals("Cached", notes[0].title)
         assertEquals("body", notes[0].snippet)
+        assertEquals("# Cached\nbody", notes[0].content)
     }
 
     @Test
-    fun `refresh re-reads head only for files changed since last scan`() = runTest {
+    fun `refresh re-reads content only for files changed since last scan`() = runTest {
         val counting = CountingNoteStore(context.filesDir.resolve("notes"))
         val repo = NoteRepository(context) { counting to false }
         repo.refresh()
@@ -372,15 +373,16 @@ class NoteRepositoryTest {
         val notesBefore = repo.notes.first()
         assertEquals("A", notesBefore.first { it.uri == a.uri }.title)
         assertEquals("B", notesBefore.first { it.uri == b.uri }.title)
-        val before = counting.headReads.get()
+        val before = counting.fullReads.get()
         repo.refresh()
-        assertEquals(before, counting.headReads.get())
+        assertEquals(before, counting.fullReads.get())
         java.io.File(java.net.URI(b.uri)).writeText("# B2\nb2 changed")
         repo.refresh()
-        assertEquals(before + 1, counting.headReads.get())
+        assertEquals(before + 1, counting.fullReads.get())
         val notes = repo.notes.first()
         assertEquals("A", notes.first { it.uri == a.uri }.title)
         assertEquals("B2", notes.first { it.uri == b.uri }.title)
+        assertEquals("# B2\nb2 changed", notes.first { it.uri == b.uri }.content)
     }
 
     @Test
@@ -422,10 +424,10 @@ class NoteRepositoryTest {
     }
 
     @Test
-    fun `refresh falls back to file name when head read fails`() = runTest {
+    fun `refresh falls back to file name when the note read fails`() = runTest {
         val broken = object : NoteStore by InternalNoteStore(context.filesDir.resolve("notes")) {
-            override suspend fun readHead(uri: String, maxBytes: Int): String =
-                throw java.io.IOException("head unavailable")
+            override suspend fun readNote(uri: String): String =
+                throw java.io.IOException("note unavailable")
         }
         val repo = NoteRepository(context) { broken to false }
         val meta = repo.createNote()!!
@@ -434,17 +436,18 @@ class NoteRepositoryTest {
         assertEquals(1, notes.size)
         assertEquals(meta.name.removeSuffix(".md"), notes[0].title)
         assertEquals("", notes[0].snippet)
+        assertEquals("", notes[0].content)
     }
 
     @Test
-    fun `failed head read is not cached and later refresh recovers the title`() = runTest {
+    fun `failed note read is not cached and later refresh recovers title and content`() = runTest {
         val notesDir = context.filesDir.resolve("notes")
         val delegate = InternalNoteStore(notesDir)
         var fail = true
         val flaky = object : NoteStore by delegate {
-            override suspend fun readHead(uri: String, maxBytes: Int): String {
+            override suspend fun readNote(uri: String): String {
                 if (fail) throw java.io.IOException("SD card unavailable")
-                return delegate.readHead(uri, maxBytes)
+                return delegate.readNote(uri)
             }
         }
         val repo = NoteRepository(context) { flaky to false }
@@ -452,22 +455,24 @@ class NoteRepositoryTest {
         repo.refresh()
         assertEquals(meta.name.removeSuffix(".md"), repo.notes.first()[0].title)
         assertEquals("", repo.notes.first()[0].snippet)
+        assertEquals("", repo.notes.first()[0].content)
         fail = false
         repo.refresh()
         val notes = repo.notes.first()
         assertEquals("Recovered", notes[0].title)
         assertEquals("body", notes[0].snippet)
+        assertEquals("# Recovered\nbody", notes[0].content)
     }
 
     @Test
-    fun `empty head from store is not cached and later refresh recovers the title`() = runTest {
+    fun `empty note read is not cached and later refresh recovers title and content`() = runTest {
         val notesDir = context.filesDir.resolve("notes")
         val delegate = InternalNoteStore(notesDir)
         var returnEmpty = true
         val flaky = object : NoteStore by delegate {
-            override suspend fun readHead(uri: String, maxBytes: Int): String {
+            override suspend fun readNote(uri: String): String {
                 if (returnEmpty) return ""
-                return delegate.readHead(uri, maxBytes)
+                return delegate.readNote(uri)
             }
         }
         val repo = NoteRepository(context) { flaky to false }
@@ -479,6 +484,31 @@ class NoteRepositoryTest {
         val notes = repo.notes.first()
         assertEquals("Later", notes[0].title)
         assertEquals("body", notes[0].snippet)
+        assertEquals("# Later\nbody", notes[0].content)
+    }
+
+    @Test
+    fun `refresh indexes the full note content beyond the head window for search`() = runTest {
+        val deep = "# Deep\nshort snippet\n" + "x".repeat(HEAD_BYTES) + "\nneedle-at-the-end"
+        val (meta) = seed(deep)
+        repository.refresh()
+        val note = repository.notes.first().first { it.uri == meta.uri }
+        assertEquals(deep, note.content)
+        val entries = repository.notes.first().toSearchEntries()
+        assertEquals(listOf(note), filterNotesPrecomputed(entries, "needle-at-the-end"))
+        assertTrue(filterNotesPrecomputed(entries, "not-anywhere").isEmpty())
+    }
+
+    @Test
+    fun `writeNote keeps the indexed content in sync for search`() = runTest {
+        val (meta) = seed("# A\nold body")
+        repository.writeNote(meta.uri, "# A\nnew body with fresh-token")
+        val notes = repository.notes.first()
+        val updated = notes.first { it.uri == meta.uri }
+        assertEquals("# A\nnew body with fresh-token", updated.content)
+        val entries = notes.toSearchEntries()
+        assertEquals(listOf(updated), filterNotesPrecomputed(entries, "fresh-token"))
+        assertTrue(filterNotesPrecomputed(entries, "old body").isEmpty())
     }
 
     @Test
@@ -548,20 +578,23 @@ class NoteRepositoryTest {
 
     private class CountingNoteStore(dir: java.io.File) : NoteStore {
         private val delegate = InternalNoteStore(dir)
-        val headReads = java.util.concurrent.atomic.AtomicInteger(0)
+        val fullReads = java.util.concurrent.atomic.AtomicInteger(0)
 
         override suspend fun listNotes() = delegate.listNotes()
         override suspend fun createNote() = delegate.createNote()
         override suspend fun createNoteWithContent(content: String) = delegate.createNoteWithContent(content)
         override suspend fun restoreNote(name: String, content: String) = delegate.restoreNote(name, content)
-        override suspend fun readNote(uri: String) = delegate.readNote(uri)
         override suspend fun writeNote(uri: String, content: String) = delegate.writeNote(uri, content)
         override suspend fun deleteNote(uri: String) = delegate.deleteNote(uri)
         override fun displayName() = delegate.displayName()
 
         override suspend fun readHead(uri: String, maxBytes: Int): String {
-            headReads.incrementAndGet()
             return delegate.readHead(uri, maxBytes)
+        }
+
+        override suspend fun readNote(uri: String): String {
+            fullReads.incrementAndGet()
+            return delegate.readNote(uri)
         }
     }
 }

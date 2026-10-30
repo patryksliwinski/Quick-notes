@@ -20,6 +20,28 @@ data class WidgetRow(
     val noteUri: String?,
 )
 
+data class WidgetLayout(
+    val visibleRows: Int,
+    val showSubtitles: Boolean,
+)
+
+private const val WIDGET_VERTICAL_CHROME_DP = 40
+private const val ROW_FULL_DP = 40
+private const val ROW_TITLE_ONLY_DP = 26
+
+fun widgetLayoutForHeight(heightDp: Int, maxRows: Int): WidgetLayout {
+    val available = (heightDp - WIDGET_VERTICAL_CHROME_DP).coerceAtLeast(0)
+    val fullRows = available / ROW_FULL_DP
+    return if (fullRows >= 1) {
+        WidgetLayout(visibleRows = fullRows.coerceAtMost(maxRows), showSubtitles = true)
+    } else {
+        WidgetLayout(
+            visibleRows = (available / ROW_TITLE_ONLY_DP).coerceIn(1, maxRows),
+            showSubtitles = false,
+        )
+    }
+}
+
 fun widgetRows(notes: List<NoteMeta>, limit: Int, emptyText: String): List<WidgetRow> {
     val top = recentNotes(notes, limit)
     if (top.isEmpty()) {

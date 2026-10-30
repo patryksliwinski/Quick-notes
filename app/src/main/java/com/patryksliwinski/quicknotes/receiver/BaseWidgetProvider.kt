@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.os.Bundle
 import android.widget.RemoteViews
 import androidx.annotation.LayoutRes
 import com.patryksliwinski.quicknotes.R
@@ -20,10 +21,28 @@ abstract class BaseWidgetProvider : AppWidgetProvider() {
         appWidgetIds: IntArray,
     ) {
         for (id in appWidgetIds) {
-            val views = buildViews(context)
-            attachClickIntents(context, views)
-            appWidgetManager.updateAppWidget(id, views)
+            updateWidget(context, appWidgetManager, id)
         }
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle,
+    ) {
+        updateWidget(context, appWidgetManager, appWidgetId)
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
+    }
+
+    open fun updateWidget(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+    ) {
+        val views = buildViews(context)
+        attachClickIntents(context, views)
+        appWidgetManager.updateAppWidget(appWidgetId, views)
     }
 
     protected fun buildViews(context: Context): RemoteViews {

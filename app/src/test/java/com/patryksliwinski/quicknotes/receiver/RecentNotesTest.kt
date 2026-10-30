@@ -72,3 +72,43 @@ class RecentNotesTest {
         assertTrue(rows.drop(1).all { it.title.isEmpty() && it.noteUri == null })
     }
 }
+
+class WidgetLayoutTest {
+
+    @Test
+    fun `tall widget shows max rows with subtitles`() {
+        val layout = widgetLayoutForHeight(heightDp = 240, maxRows = 5)
+        assertEquals(WidgetLayout(visibleRows = 5, showSubtitles = true), layout)
+    }
+
+    @Test
+    fun `medium widget shows fewer full rows`() {
+        val layout = widgetLayoutForHeight(heightDp = 160, maxRows = 5)
+        assertEquals(WidgetLayout(visibleRows = 3, showSubtitles = true), layout)
+    }
+
+    @Test
+    fun `short widget hides subtitles but keeps at least one row`() {
+        val layout = widgetLayoutForHeight(heightDp = 60, maxRows = 5)
+        assertEquals(WidgetLayout(visibleRows = 1, showSubtitles = false), layout)
+    }
+
+    @Test
+    fun `widget with room for exactly one full row shows its subtitle`() {
+        val layout = widgetLayoutForHeight(heightDp = 110, maxRows = 5)
+        assertEquals(WidgetLayout(visibleRows = 1, showSubtitles = true), layout)
+    }
+
+    @Test
+    fun `tiny widget clamps to one row and never zero or negative`() {
+        val layout = widgetLayoutForHeight(heightDp = 40, maxRows = 5)
+        assertEquals(1, layout.visibleRows)
+        assertEquals(false, layout.showSubtitles)
+    }
+
+    @Test
+    fun `visible rows never exceed maxRows`() {
+        val layout = widgetLayoutForHeight(heightDp = 10_000, maxRows = 5)
+        assertEquals(5, layout.visibleRows)
+    }
+}

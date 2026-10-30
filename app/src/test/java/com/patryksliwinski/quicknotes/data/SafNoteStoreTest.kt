@@ -178,7 +178,8 @@ class SafNoteStoreTest {
 
     @Test
     fun `writeNote throws when the tmp output stream is null so the note is not truncated`() = runTest {
-        val provider = FakeSafProvider(displayName = "a.md", nullOutputStream = true)
+        val tmpUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, "XXXX-XXXX:Notes/.a.md.tmp")
+        val provider = FakeSafProvider(displayName = "a.md", createResult = tmpUri, nullOutputStream = true)
         install(provider)
         val docUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, "XXXX-XXXX:Notes/a.md")
         val exception = assertThrows(Exception::class.java) {
@@ -347,11 +348,10 @@ class SafNoteStoreTest {
 
         override fun openAssetFile(uri: Uri, mode: String): android.content.res.AssetFileDescriptor? {
             if (openFileFails) throw java.io.FileNotFoundException("volume unavailable")
+            if (nullOutputStream) return null
             val file = java.io.File.createTempFile("saf", ".tmp")
             file.deleteOnExit()
-            if (!nullOutputStream) {
-                shadowOf(context!!.contentResolver).registerOutputStream(uri, java.io.FileOutputStream(file))
-            }
+            shadowOf(context!!.contentResolver).registerOutputStream(uri, java.io.FileOutputStream(file))
             val pfd = android.os.ParcelFileDescriptor.open(file, android.os.ParcelFileDescriptor.MODE_READ_WRITE)
             return android.content.res.AssetFileDescriptor(pfd, 0, file.length())
         }

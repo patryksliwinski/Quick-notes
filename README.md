@@ -20,7 +20,7 @@ Requires JDK 17 and Android SDK (compileSdk 35).
 
 ```
 ui/        Compose screens: list, editor, settings, MainActivity
-receiver/  Home-screen app widget -> ACTION_NEW_NOTE
+receiver/  Home-screen widgets: NewNoteWidgetProvider -> ACTION_NEW_NOTE, RecentNotesWidgetProvider (5 most recent notes) -> ACTION_OPEN_NOTE
 tile/      Quick-settings tile -> ACTION_NEW_NOTE
 data/      NoteStore (internal dir or SAF tree), NoteRepository, folder prefs
 ```

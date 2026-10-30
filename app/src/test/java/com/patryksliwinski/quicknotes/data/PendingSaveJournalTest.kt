@@ -75,7 +75,15 @@ class PendingSaveJournalTest {
     ) : android.content.SharedPreferences by delegate {
         override fun edit(): android.content.SharedPreferences.Editor {
             val editor = delegate.edit()
-            return object : android.content.SharedPreferences.Editor by editor {
+            return object : android.content.SharedPreferences.Editor {
+                override fun putString(key: String?, value: String?) = also { editor.putString(key, value) }
+                override fun putStringSet(key: String?, values: MutableSet<String>?) = also { editor.putStringSet(key, values) }
+                override fun putInt(key: String?, value: Int) = also { editor.putInt(key, value) }
+                override fun putLong(key: String?, value: Long) = also { editor.putLong(key, value) }
+                override fun putFloat(key: String?, value: Float) = also { editor.putFloat(key, value) }
+                override fun putBoolean(key: String?, value: Boolean) = also { editor.putBoolean(key, value) }
+                override fun remove(key: String?) = also { editor.remove(key) }
+                override fun clear() = also { editor.clear() }
                 override fun commit(): Boolean {
                     onCommit()
                     return editor.commit()

@@ -24,6 +24,11 @@ enum class NoteError {
     FolderPermissionLost,
 }
 
+enum class SaveOutcome {
+    Written,
+    Journaled,
+}
+
 class NoteRepository(
     private val context: Context,
     private val storeProvider: () -> Pair<NoteStore, Boolean> = { resolveNoteStore(context) },
@@ -147,7 +152,7 @@ class NoteRepository(
         return content
     }
 
-    suspend fun writeNote(uri: String, content: String) = withContext(Dispatchers.IO) {
+    suspend fun writeNote(uri: String, content: String): SaveOutcome = withContext(Dispatchers.IO) {
         journal.record(uri, content)
         mutexFor(uri).withLock {
             try {
@@ -156,10 +161,11 @@ class NoteRepository(
                 val now = System.currentTimeMillis()
                 _notes.value = upsertEditedNote(_notes.value, uri, content, now)
                 scheduleWidgetRefresh()
+                SaveOutcome.Written
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _errorMessage.value = NoteError.StorageError
+                SaveOutcome.Journaled
             }
         }
     }
@@ -176,6 +182,8 @@ class NoteRepository(
                 try {
                     resolved.writeNote(save.uri, save.content)
                     journal.clear(save.uri)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     _errorMessage.value = NoteError.StorageError
                 }

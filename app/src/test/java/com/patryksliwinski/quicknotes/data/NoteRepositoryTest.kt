@@ -125,11 +125,24 @@ class NoteRepositoryTest {
     }
 
     @Test
-    fun `writeNote failure sets StorageError and does not crash`() = runTest {
+    fun `writeNote failure keeps the journal entry and reports Journaled without a StorageError`() = runTest {
+        val journal = PendingSaveJournal(context)
         val repo = NoteRepository(context) { FailingNoteStore(failCreate = false) to false }
         repo.refresh()
-        repo.writeNote("content://failing/doc1", "hello")
-        assertEquals(NoteError.StorageError, repo.errorMessage.first())
+        repo.clearError()
+        val outcome = repo.writeNote("content://failing/doc1", "hello")
+        assertEquals(SaveOutcome.Journaled, outcome)
+        assertNull(repo.errorMessage.first())
+        assertEquals(listOf(PendingSave("content://failing/doc1", "hello")), journal.pending())
+    }
+
+    @Test
+    fun `writeNote success returns Written and clears the journal without an error`() = runTest {
+        val (meta) = seed("# A\na")
+        val outcome = repository.writeNote(meta.uri, "# A2\na2")
+        assertEquals(SaveOutcome.Written, outcome)
+        assertNull(repository.errorMessage.first())
+        assertTrue(PendingSaveJournal(context).pending().isEmpty())
     }
 
     @Test
@@ -496,7 +509,6 @@ class NoteRepositoryTest {
         repo.writeNote("content://failing/doc1", "must survive")
         val pending = journal.pending()
         assertEquals(listOf(PendingSave("content://failing/doc1", "must survive")), pending)
-        assertEquals(NoteError.StorageError, repo.errorMessage.first())
     }
 
     @Test

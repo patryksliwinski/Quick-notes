@@ -8,6 +8,7 @@ Self-improving log for this repo. High-signal only: a lesson goes here **only wh
 
 | Date | Lesson | File |
 |---|---|---|
+| `2026-10-30` | [A journaled-but-not-yet-written save is durable, not an error — `writeNote` returns `SaveOutcome` and only a failed cold-start flush raises `StorageError`, so leaving the editor no longer shows a phantom "could not save"](2026-10-30-journaled-save-is-not-a-save-error.md) |
 | `2026-10-30` | [A null SAF cursor/stream means "volume unavailable", never "empty folder" — throw so the list falls back with a banner and keeps the last known notes; sanitize non-positive `COLUMN_LAST_MODIFIED` (issue #59)](2026-10-30-saf-null-cursor-means-unavailable-not-empty.md) |
 | `2026-10-30` | [Durability path must be synchronous (`commit()`, not `apply()`); SAF failures must throw, never return `""` — silent empty reads get autosaved over real files (issue #58)](2026-10-30-journal-record-must-commit-saf-failures-must-throw.md) |
 | `2026-10-30` | [One NoteRepository per process, shared by all ViewModels via an app-scoped holder — a repository owning a mutable index is a single source of truth only if there is one instance (issue #57)](2026-10-30-one-note-repository-per-process-shared-by-viewmodels.md) |

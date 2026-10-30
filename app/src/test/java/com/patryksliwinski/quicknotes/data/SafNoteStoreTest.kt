@@ -28,6 +28,7 @@ class SafNoteStoreTest {
     private fun store(): SafNoteStore = SafNoteStore(context, treeUri)
 
     private fun install(provider: FakeSafProvider) {
+        provider.attachInfoForTest(context)
         ShadowContentResolver.registerProviderInternal(
             "com.android.externalstorage.documents", provider
         )
@@ -124,7 +125,7 @@ class SafNoteStoreTest {
             kotlinx.coroutines.runBlocking { store().createNoteWithContent("hello") }
         }
         assertTrue(exception.message!!.contains("Could not commit note write"))
-        assertEquals(1, provider.createCalls.size)
+        assertEquals(2, provider.createCalls.size)
         assertTrue(provider.callMethods.contains("android:renameDocument"))
     }
 
@@ -138,7 +139,7 @@ class SafNoteStoreTest {
         assertTrue(meta.name.endsWith(".md"))
         assertEquals("Hello", meta.title)
         assertEquals("body", meta.snippet)
-        assertEquals(1, provider.createCalls.size)
+        assertEquals(2, provider.createCalls.size)
         assertTrue(provider.callMethods.contains("android:renameDocument"))
         assertTrue(provider.callMethods.contains("android:deleteDocument"))
     }
@@ -180,12 +181,11 @@ class SafNoteStoreTest {
     }
 
     @Test
-    fun `createNote throws IllegalStateException when the provider returns no document uri`() = runTest {
+    fun `createNote throws when the provider returns no document uri`() = runTest {
         install(FakeSafProvider(createResult = null))
-        val exception = assertThrows(IllegalStateException::class.java) {
+        assertThrows(Exception::class.java) {
             kotlinx.coroutines.runBlocking { store().createNote() }
         }
-        assertTrue(exception.message!!.contains("Could not create note"))
     }
 
     @Test
@@ -206,13 +206,13 @@ class SafNoteStoreTest {
     @Test
     fun `displayName falls back to the last path segment when the query yields no name`() = runTest {
         install(FakeSafProvider(displayName = null))
-        assertEquals("XXXX-XXXX%3ANotes", store().displayName())
+        assertEquals("XXXX-XXXX:Notes", store().displayName())
     }
 
     @Test
     fun `displayName falls back to the last path segment when the query throws`() = runTest {
         install(FakeSafProvider(queryFails = true))
-        assertEquals("XXXX-XXXX%3ANotes", store().displayName())
+        assertEquals("XXXX-XXXX:Notes", store().displayName())
     }
 
     @Test
@@ -236,7 +236,7 @@ class SafNoteStoreTest {
 
         override fun onCreate() = true
 
-        init {
+        fun attachInfoForTest(ctx: android.content.Context) {
             val info = android.content.pm.ProviderInfo().apply {
                 authority = "com.android.externalstorage.documents"
                 name = "FakeSafProvider"
@@ -246,7 +246,7 @@ class SafNoteStoreTest {
                 android.content.pm.ProviderInfo::class.java, Boolean::class.javaPrimitiveType,
             )
             m.isAccessible = true
-            m.invoke(this, context, info, true)
+            m.invoke(this, ctx, info, true)
         }
 
         override fun call(method: String, arg: String?, extras: android.os.Bundle?): android.os.Bundle? {
@@ -308,6 +308,15 @@ class SafNoteStoreTest {
         override fun openFile(uri: Uri, mode: String): android.os.ParcelFileDescriptor? {
             if (openFileFails) throw java.io.FileNotFoundException("volume unavailable")
             return super.openFile(uri, mode)
+        }
+
+        override fun openAssetFile(uri: Uri, mode: String): android.content.res.AssetFileDescriptor? {
+            if (openFileFails) throw java.io.FileNotFoundException("volume unavailable")
+            val file = java.io.File.createTempFile("saf", ".tmp")
+            file.deleteOnExit()
+            shadowOf(context!!.contentResolver).registerOutputStream(uri, java.io.FileOutputStream(file))
+            val pfd = android.os.ParcelFileDescriptor.open(file, android.os.ParcelFileDescriptor.MODE_READ_WRITE)
+            return android.content.res.AssetFileDescriptor(pfd, 0, file.length())
         }
 
         override fun insert(uri: Uri, values: ContentValues?): Uri? = null

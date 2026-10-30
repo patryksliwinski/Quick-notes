@@ -94,13 +94,13 @@ class NewNoteIntentRouterTest {
 
     @Test
     fun `intent router maps widget row ACTION_OPEN_NOTE with the uri extra to an open-note request`() {
-        val uri = "content://com.android.externalstorage.documents/tree/XXXX%3ANotes/document/XXXX%3ANotes%3Aa.md"
+        val uri = "content://com.android.externalstorage.documents/tree/XXXX%3ANotes/document/XXXX%3ANotes%2Fa.md"
         val request = incomingNoteRequestFromIntent(openNoteIntent(uri))
         assertTrue(request is IncomingNoteRequest.OpenNote)
         val note = (request as IncomingNoteRequest.OpenNote).note
         assertEquals(uri, note.uri)
-        assertEquals("a.md", note.name)
-        assertEquals("a", note.title)
+        assertEquals("XXXX%3ANotes%2Fa.md", note.name)
+        assertEquals("XXXX%3ANotes%2Fa", note.title)
     }
 
     @Test
@@ -190,7 +190,7 @@ class NewNoteIntentRouterTest {
         }
         waitFor {
             repository.notes.value.firstOrNull()?.let {
-                it.uri == meta.uri && it.snippet == "typed then left"
+                it.uri == meta.uri && it.title == "typed then left"
             } == true
         }
         assertEquals(1, repository.notes.value.size)

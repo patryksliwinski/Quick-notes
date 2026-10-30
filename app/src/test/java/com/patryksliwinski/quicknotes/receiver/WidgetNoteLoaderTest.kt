@@ -1,9 +1,14 @@
 package com.patryksliwinski.quicknotes.receiver
 
 import com.patryksliwinski.quicknotes.data.NoteMeta
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -13,6 +18,16 @@ import org.robolectric.RuntimeEnvironment
 class WidgetNoteLoaderTest {
 
     private val context get() = RuntimeEnvironment.getApplication()
+
+    @Before
+    fun setUp() {
+        Dispatchers.setMain(Dispatchers.Unconfined)
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
 
     private fun meta(name: String, lastModified: Long, snippet: String = "") = NoteMeta(
         uri = "file:///notes/$name",

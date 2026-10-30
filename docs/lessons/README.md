@@ -6,6 +6,7 @@ Self-improving log for this repo.
 
 | Date | Lesson | File |
 |---|---|---|
+| `2026-10-30` | [CI caches Gradle via `gradle/actions/setup-gradle` in every build job — dependency + wrapper caches, no project change needed; warm runs drop from ~4–5 min to ~1–2 min (issue #47)](2026-10-30-ci-gradle-caching-setup-gradle.md) |
 | `2026-10-30` | [Durability path must be synchronous (`commit()`, not `apply()`); SAF failures must throw, never return `""` — silent empty reads get autosaved over real files (issue #58)](2026-10-30-journal-record-must-commit-saf-failures-must-throw.md) |
 | `2026-10-30` | [One NoteRepository per process, shared by all ViewModels via an app-scoped holder — a repository owning a mutable index is a single source of truth only if there is one instance (issue #57)](2026-10-30-one-note-repository-per-process-shared-by-viewmodels.md) |
 | `2026-10-30` | [Copilot review request never produced reviews (0/25 PRs) — step removed; self-review now happens only after the final head's CI is green (`gh pr checks --watch`), merge on final head only; `edited` no longer triggers CI/review on PRs (issue #49)](2026-10-30-copilot-review-request-never-produced-reviews.md) |

@@ -54,6 +54,9 @@ fun deriveSnippet(name: String, head: String): String {
     return body.take(80)
 }
 
+fun parentDocumentUriOf(treeUri: Uri): Uri =
+    DocumentsContract.buildDocumentUriUsingTree(treeUri, DocumentsContract.getTreeDocumentId(treeUri))
+
 private fun readHead(uri: Uri, resolver: android.content.ContentResolver, maxBytes: Int = 4096): String {
     return resolver.openInputStream(uri)?.use { it.readHead(maxBytes) } ?: ""
 }
@@ -132,6 +135,8 @@ class SafNoteStore(
         get() = DocumentsContract.buildChildDocumentsUriUsingTree(
             treeUri, DocumentsContract.getTreeDocumentId(treeUri)
         )
+    private val parentDocumentUri: Uri
+        get() = parentDocumentUriOf(treeUri)
 
     override suspend fun listNotes(): List<NoteMeta> {
         val projection = arrayOf(
@@ -175,7 +180,7 @@ class SafNoteStore(
     }
 
     private suspend fun createWithName(name: String, content: String): NoteMeta {
-        val uri = DocumentsContract.createDocument(resolver, treeUri, "text/markdown", name)
+        val uri = DocumentsContract.createDocument(resolver, parentDocumentUri, "text/markdown", name)
             ?: throw IllegalStateException("Could not create note in selected folder")
         if (content.isNotEmpty()) {
             writeText(uri, content)
@@ -199,14 +204,26 @@ class SafNoteStore(
         writeText(Uri.parse(uri), content)
     }
 
+    private fun documentDisplayName(uri: Uri): String? {
+        return resolver.query(
+            uri,
+            arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+            null, null, null
+        )?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+    }
+
     private fun writeText(uri: Uri, content: String) {
-        val tmpName = "." + uri.lastPathSegment + ".tmp"
-        val tmp = DocumentsContract.createDocument(resolver, treeUri, "application/octet-stream", tmpName)
+        val targetName = documentDisplayName(uri)
+            ?: runCatching { DocumentsContract.getDocumentId(uri) }.getOrNull()
+            ?: uri.lastPathSegment
+            ?: "note.md"
+        val tmpName = ".$targetName.tmp"
+        val tmp = DocumentsContract.createDocument(resolver, parentDocumentUri, "application/octet-stream", tmpName)
         try {
             if (tmp != null) {
                 resolver.openOutputStream(tmp, "w")?.use { it.write(content.toByteArray(Charsets.UTF_8)) }
                 DocumentsContract.deleteDocument(resolver, uri)
-                DocumentsContract.renameDocument(resolver, tmp, uri.lastPathSegment ?: tmpName)
+                DocumentsContract.renameDocument(resolver, tmp, targetName)
             } else {
                 resolver.openOutputStream(uri, "w")?.use { it.write(content.toByteArray(Charsets.UTF_8)) }
             }

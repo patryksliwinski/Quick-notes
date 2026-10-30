@@ -39,6 +39,7 @@ app/src/main/java/com/patryksliwinski/quicknotes/
 - Dotfiles are ignored (generic hygiene — keeps sync-tool marker files out of the list without naming any tool).
 - Deletes are hard deletes. Recovery is the sync tool's versioning, not ours.
 - SAF writes go through `ContentResolver`; they can be slow (cloud folders) — that's fine because they're off the main thread and the UI is optimistic.
+- SAF `createDocument` takes the tree's **document URI** (`buildDocumentUriUsingTree(tree, getTreeDocumentId(tree))`), never the tree URI itself — removable volumes (SD cards) reject the tree URI and the write silently fails (issue #23).
 
 ## Performance contract
 

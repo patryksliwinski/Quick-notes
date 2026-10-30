@@ -6,6 +6,7 @@ Self-improving log for this repo.
 
 | Date | Lesson | File |
 |---|---|---|
+| `2026-10-30` | [SAF `createDocument` needs the tree's document URI, not the tree URI — wrong parent URI silently falls back to app-private storage on SD cards (issue #23)](2026-10-30-saf-create-document-needs-document-uri.md) |
 | `2026-10-29` | [SAF I/O failures must never crash the app — repository wraps store calls, surfaces `NoteError` as a snackbar, falls back to app-private storage](2026-10-29-saf-io-failures-must-never-crash.md) |
 | `2026-10-29` | [Recent-notes widget: `goAsync` off the main thread, fixed 5-row layout fed by a pure `widgetRows` mapping, package-scoped refresh broadcast from `NoteRepository`](2026-10-29-recent-notes-widget-goasync-collection.md) |
 | `2026-10-29` | [Releasing a new version requires a version-bump PR on main before tagging](2026-10-29-release-version-bump-needs-pr.md) |

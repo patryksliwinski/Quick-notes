@@ -31,7 +31,7 @@ class EditorTextTest {
     }
 
     @Test
-    fun `timestampLine formats date as yyyy-MM-dd HH:mm`() {
+    fun `timestampLine formats date as yyyy MM dd HH mm`() {
         val date = Date(0L) // 1970-01-01 00:00 UTC; local tz shifts the hour
         val line = timestampLine(date)
         assertEquals(16, line.length)

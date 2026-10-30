@@ -3,6 +3,7 @@ package com.patryksliwinski.quicknotes.ui
 import com.patryksliwinski.quicknotes.data.InternalNoteStore
 import com.patryksliwinski.quicknotes.data.NoteMeta
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.test.resetMain

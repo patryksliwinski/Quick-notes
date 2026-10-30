@@ -6,7 +6,7 @@ import org.json.JSONObject
 
 data class PendingSave(val uri: String, val content: String)
 
-class PendingSaveJournal private constructor(private val prefs: SharedPreferences) {
+class PendingSaveJournal(private val prefs: SharedPreferences) {
 
     constructor(context: Context) : this(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE))
 

@@ -224,10 +224,16 @@ class EditorViewModelTest {
     @Test
     fun `failed note load does not autosave empty content over the real file`() {
         val writes = mutableListOf<String>()
-        val store = object : com.patryksliwinski.quicknotes.data.FailingNoteStore(failCreate = false) {
-            override suspend fun writeNote(uri: String, content: String) {
-                writes.add(content)
-            }
+        val store = object : com.patryksliwinski.quicknotes.data.NoteStore {
+            override suspend fun listNotes() = emptyList<com.patryksliwinski.quicknotes.data.NoteMeta>()
+            override suspend fun createNote() = throw UnsupportedOperationException()
+            override suspend fun createNoteWithContent(content: String) = throw UnsupportedOperationException()
+            override suspend fun restoreNote(name: String, content: String) = throw UnsupportedOperationException()
+            override suspend fun readNote(uri: String): String = throw java.io.IOException("volume unavailable")
+            override suspend fun readHead(uri: String, maxBytes: Int): String = throw java.io.IOException("volume unavailable")
+            override suspend fun writeNote(uri: String, content: String) { writes.add(content) }
+            override suspend fun deleteNote(uri: String) {}
+            override fun displayName() = "failing"
         }
         val repo = com.patryksliwinski.quicknotes.data.NoteRepository(app) { store to false }
         val field = EditorViewModel::class.java.getDeclaredField("repository")

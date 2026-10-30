@@ -1,6 +1,6 @@
 package com.patryksliwinski.quicknotes.data
 
-class FailingNoteStore(
+open class FailingNoteStore(
     private val failCreate: Boolean = true,
     private val failList: Boolean = false,
 ) : NoteStore {

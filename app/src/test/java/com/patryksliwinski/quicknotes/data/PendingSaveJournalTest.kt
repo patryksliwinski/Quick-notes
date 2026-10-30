@@ -68,50 +68,51 @@ class PendingSaveJournalTest {
         assertEquals(listOf(PendingSave("file:///notes/ok.md", "ok")), pending)
     }
 
-    @Test
-    fun `record is synchronous so a process kill cannot lose the journaled content`() {
-        val recordingPrefs = object : android.content.SharedPreferences by
-            context.getSharedPreferences("quicknotes_pending_saves", android.content.Context.MODE_PRIVATE) {
-            var committed = false
-            override fun edit(): android.content.SharedPreferences.Editor {
-                val delegate = super.edit()
-                return object : android.content.SharedPreferences.Editor by delegate {
-                    override fun commit(): Boolean {
-                        committed = true
-                        return delegate.commit()
-                    }
-                    override fun apply() {
-                        throw AssertionError("record must not use async apply() on the durability path")
-                    }
+    private class RecordingPrefs(
+        private val delegate: android.content.SharedPreferences,
+        var onCommit: () -> Unit = {},
+        var onApply: () -> Unit = {},
+    ) : android.content.SharedPreferences by delegate {
+        override fun edit(): android.content.SharedPreferences.Editor {
+            val editor = delegate.edit()
+            return object : android.content.SharedPreferences.Editor by editor {
+                override fun commit(): Boolean {
+                    onCommit()
+                    return editor.commit()
+                }
+                override fun apply() {
+                    onApply()
+                    editor.apply()
                 }
             }
         }
-        val durableJournal = PendingSaveJournal(recordingPrefs)
+    }
+
+    @Test
+    fun `record is synchronous so a process kill cannot lose the journaled content`() {
+        val prefs = context.getSharedPreferences("quicknotes_pending_saves", android.content.Context.MODE_PRIVATE)
+        var committed = false
+        val recording = RecordingPrefs(prefs,
+            onCommit = { committed = true },
+            onApply = { throw AssertionError("record must not use async apply() on the durability path") },
+        )
+        val durableJournal = PendingSaveJournal(recording)
         durableJournal.record("file:///notes/a.md", "typed before kill")
-        assertTrue(recordingPrefs.getString("file:///notes/a.md", null) != null)
+        assertTrue(committed)
+        assertTrue(prefs.getString("file:///notes/a.md", null) != null)
         assertEquals("typed before kill", durableJournal.pending().single().content)
     }
 
     @Test
     fun `clear stays asynchronous`() {
-        val recordingPrefs = object : android.content.SharedPreferences by
-            context.getSharedPreferences("quicknotes_pending_saves", android.content.Context.MODE_PRIVATE) {
-            var applyCalled = false
-            override fun edit(): android.content.SharedPreferences.Editor {
-                val delegate = super.edit()
-                return object : android.content.SharedPreferences.Editor by delegate {
-                    override fun commit(): Boolean {
-                        throw AssertionError("clear may stay async and must not use commit()")
-                    }
-                    override fun apply() {
-                        applyCalled = true
-                        delegate.apply()
-                    }
-                }
-            }
-        }
-        val journal = PendingSaveJournal(recordingPrefs)
-        recordingPrefs.edit().putString("file:///notes/a.md", "{\"content\":\"x\"}").commit()
+        val prefs = context.getSharedPreferences("quicknotes_pending_saves", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putString("file:///notes/a.md", "{\"content\":\"x\"}").commit()
+        var applyCalled = false
+        val recording = RecordingPrefs(prefs,
+            onCommit = { throw AssertionError("clear may stay async and must not use commit()") },
+            onApply = { applyCalled = true },
+        )
+        val journal = PendingSaveJournal(recording)
         journal.clear("file:///notes/a.md")
         assertTrue(applyCalled)
         assertTrue(journal.pending().isEmpty())

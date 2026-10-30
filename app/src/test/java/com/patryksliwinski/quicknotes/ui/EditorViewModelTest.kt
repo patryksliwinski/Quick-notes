@@ -242,7 +242,7 @@ class EditorViewModelTest {
         val meta = NoteMeta("content://failing/doc1", "doc1.md", 0L, "doc1", "", size = 42L)
         viewModel.open(meta)
         waitFor { repo.errorMessage.value == com.patryksliwinski.quicknotes.data.NoteError.StorageError }
-        assertEquals("", viewModel.content.value)
+        waitFor { viewModel.content.value == "" && viewModel.saveState.value == null }
         assertTrue(viewModel.hasUnsavedChanges)
         viewModel.onContentChange("typed after failure")
         Thread.sleep(600)

@@ -190,7 +190,7 @@ class NewNoteIntentRouterTest {
         }
         waitFor {
             repository.notes.value.firstOrNull()?.let {
-                it.uri == meta.uri && it.title == "typed then left"
+                it.uri == meta.uri && it.content == "typed then left"
             } == true
         }
         assertEquals(1, repository.notes.value.size)

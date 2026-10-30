@@ -102,9 +102,9 @@ class NotesViewModelTest {
         waitFor { viewModel.notes.value.size == 2 }
         viewModel.onQueryChange("ALPHA")
         waitFor { viewModel.notes.value.size == 1 }
-        assertEquals("alpha", viewModel.notes.value[0].content.lineSequence().first())
+        assertEquals("# Alpha", viewModel.notes.value[0].content.lineSequence().first())
         viewModel.onQueryChange("unique")
-        waitFor { viewModel.notes.value.size == 1 && viewModel.notes.value[0].snippet == "unique-snippet" }
+        waitFor { viewModel.notes.value.size == 1 && viewModel.notes.value[0].content.contains("unique-snippet") }
         viewModel.onQueryChange("no-such-note")
         waitFor { viewModel.notes.value.isEmpty() }
         viewModel.onQueryChange("")

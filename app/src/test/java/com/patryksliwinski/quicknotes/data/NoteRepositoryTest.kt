@@ -276,11 +276,11 @@ class NoteRepositoryTest {
         val notes = repository.notes.first()
         val updated = notes.first { it.uri == a.uri }
         assertEquals(a.name.removeSuffix(".md"), updated.title)
-        assertEquals("body a", updated.snippet)
+        assertEquals("# Alpha", updated.snippet)
         assertEquals(2, notes.size)
         val untouched = notes.first { it.uri == b.uri }
         assertEquals(b.name.removeSuffix(".md"), untouched.title)
-        assertEquals("b", untouched.snippet)
+        assertEquals("# B", untouched.snippet)
     }
 
     @Test
@@ -347,7 +347,7 @@ class NoteRepositoryTest {
         val notes = repository.notes.first()
         assertEquals(1, notes.size)
         assertEquals(meta.name.removeSuffix(".md"), notes[0].title)
-        assertEquals("new", notes[0].snippet)
+        assertEquals("# New", notes[0].snippet)
         assertEquals("# New\nnew", repository.readNote(notes[0].uri).getOrThrow())
     }
 
@@ -363,7 +363,7 @@ class NoteRepositoryTest {
         assertEquals("# Shared\nfrom another app", repository.readNote(meta.uri).getOrThrow())
         assertTrue(Regex("""\d{8}-\d{6}-[a-z0-9]{4}\.md""").matches(meta.name))
         assertEquals(meta.name.removeSuffix(".md"), meta.title)
-        assertEquals("from another app", meta.snippet)
+        assertEquals("# Shared", meta.snippet)
         assertEquals(meta.uri, repository.notes.first().first().uri)
     }
 
@@ -393,7 +393,7 @@ class NoteRepositoryTest {
         val notes = repo.notes.first()
         assertEquals(1, notes.size)
         assertEquals(meta.name.removeSuffix(".md"), notes[0].title)
-        assertEquals("body", notes[0].snippet)
+        assertEquals("# Cached", notes[0].snippet)
         assertEquals("# Cached\nbody", notes[0].content)
     }
 
@@ -440,7 +440,7 @@ class NoteRepositoryTest {
         val notes = repository.notes.first()
         assertEquals(listOf(a.uri, c.uri, b.uri), notes.map { it.uri })
         assertEquals(a.name.removeSuffix(".md"), notes[0].title)
-        assertEquals("body a", notes[0].snippet)
+        assertEquals("# Alpha", notes[0].snippet)
     }
 
     @Test
@@ -496,7 +496,7 @@ class NoteRepositoryTest {
         repo.refresh()
         val notes = repo.notes.first()
         assertEquals(meta.name.removeSuffix(".md"), notes[0].title)
-        assertEquals("body", notes[0].snippet)
+        assertEquals("# Recovered", notes[0].snippet)
         assertEquals("# Recovered\nbody", notes[0].content)
     }
 
@@ -519,7 +519,7 @@ class NoteRepositoryTest {
         repo.refresh()
         val notes = repo.notes.first()
         assertEquals(meta.name.removeSuffix(".md"), notes[0].title)
-        assertEquals("body", notes[0].snippet)
+        assertEquals("# Later", notes[0].snippet)
         assertEquals("# Later\nbody", notes[0].content)
     }
 

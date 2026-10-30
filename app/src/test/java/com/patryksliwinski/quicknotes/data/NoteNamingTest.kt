@@ -43,11 +43,11 @@ class NoteNamingTest {
     @Test
     fun `deriveHead combines title and snippet derivation`() {
         val fields = deriveHead("x.md", "# Shopping\nbuy milk")
-        assertEquals(HeadFields(title = "x", snippet = "buy milk"), fields)
+        assertEquals(HeadFields(title = "x", snippet = "# Shopping"), fields)
     }
 
     @Test
-    fun `deriveHead on empty head keeps the file name as title`() {
+    fun `deriveHead on empty head keeps the file name as title and empty snippet`() {
         assertEquals(
             HeadFields(title = "20250101-120000-abcd", snippet = ""),
             deriveHead("20250101-120000-abcd.md", ""),
@@ -70,18 +70,9 @@ class NoteNamingTest {
     }
 
     @Test
-    fun `snippet takes first non-title line`() {
-        assertEquals("buy milk", deriveSnippet("x.md", "# Shopping\nbuy milk"))
-    }
-
-    @Test
-    fun `snippet is empty when there is no body line`() {
-        assertEquals("", deriveSnippet("x.md", "# Shopping"))
-    }
-
-    @Test
-    fun `snippet is empty for a one-line note without heading`() {
-        assertEquals("", deriveSnippet("x.md", "Shopping"))
+    fun `snippet is the first non-empty line of content`() {
+        assertEquals("# Shopping", deriveSnippet("x.md", "# Shopping\nbuy milk"))
+        assertEquals("Shopping", deriveSnippet("x.md", "Shopping"))
     }
 
     @Test
@@ -92,17 +83,17 @@ class NoteNamingTest {
     @Test
     fun `snippet is truncated to 80 chars`() {
         val long = "a".repeat(200)
-        assertEquals(80, deriveSnippet("x.md", "t\n$long").length)
+        assertEquals(80, deriveSnippet("x.md", "$long").length)
     }
 
     @Test
     fun `snippet skips blank lines`() {
-        assertEquals("second", deriveSnippet("x.md", "# T\n\n\nsecond"))
+        assertEquals("second", deriveSnippet("x.md", "\n\n\nsecond"))
     }
 
     @Test
-    fun `snippet is empty when every body line equals the title`() {
-        assertEquals("", deriveSnippet("x.md", "Shopping\nShopping"))
-        assertEquals("", deriveSnippet("x.md", "# Shopping\nShopping"))
+    fun `snippet no longer depends on the title so the first line is always shown`() {
+        assertEquals("Shopping", deriveSnippet("x.md", "Shopping\nShopping"))
+        assertEquals("# Shopping", deriveSnippet("20250101-120000-abcd.md", "# Shopping\nShopping"))
     }
 }

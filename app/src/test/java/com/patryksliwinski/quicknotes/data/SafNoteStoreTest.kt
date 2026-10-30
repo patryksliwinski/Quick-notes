@@ -137,8 +137,8 @@ class SafNoteStoreTest {
         val meta = store().createNoteWithContent("# Hello\nbody")
         assertEquals(created.toString(), meta.uri)
         assertTrue(meta.name.endsWith(".md"))
-        assertEquals("Hello", meta.title)
-        assertEquals("body", meta.snippet)
+        assertEquals(meta.name.removeSuffix(".md"), meta.title)
+        assertEquals("# Hello", meta.snippet)
         assertEquals(2, provider.createCalls.size)
         assertTrue(provider.callMethods.contains("android:renameDocument"))
         assertTrue(provider.callMethods.contains("android:deleteDocument"))
@@ -151,7 +151,8 @@ class SafNoteStoreTest {
         val meta = store().restoreNote("restored.md", "restored content")
         assertEquals("restored.md", meta.name)
         assertEquals(created.toString(), meta.uri)
-        assertEquals("restored content", meta.title)
+        assertEquals("restored", meta.title)
+        assertEquals("restored content", meta.snippet)
     }
 
     @Test

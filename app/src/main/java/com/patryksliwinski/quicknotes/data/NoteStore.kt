@@ -60,10 +60,11 @@ fun deriveTitle(name: String, @Suppress("UNUSED_PARAMETER") head: String): Strin
     name.removeSuffix(".md")
 
 fun deriveSnippet(name: String, head: String): String {
-    val lines = head.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList()
-    val titleLine = lines.firstOrNull()?.trimStart('#')?.trim()
-    val body = lines.drop(1).firstOrNull { it != titleLine } ?: ""
-    return body.take(80)
+    val firstLine = head.lineSequence()
+        .map { it.trim() }
+        .firstOrNull { it.isNotEmpty() }
+        ?: return ""
+    return firstLine.take(80)
 }
 
 fun parentDocumentUriOf(treeUri: Uri): Uri =

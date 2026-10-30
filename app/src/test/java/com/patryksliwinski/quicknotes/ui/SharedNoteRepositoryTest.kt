@@ -48,6 +48,8 @@ class SharedNoteRepositoryTest {
 
     @After
     fun tearDown() {
+        notesViewModel.onCleared()
+        editorViewModel.onCleared()
         collectorJob.cancel()
         collectorScope.cancel()
         Dispatchers.resetMain()
@@ -57,7 +59,7 @@ class SharedNoteRepositoryTest {
         val deadline = System.currentTimeMillis() + timeoutMs
         while (!condition()) {
             if (System.currentTimeMillis() > deadline) {
-                throw AssertionError("condition not met within ${timeoutMs}ms (notes=${notesViewModel.notes.value.size})")
+                throw AssertionError("condition not met within ${timeoutMs}ms (notes=${repository.notes.value.size})")
             }
             Thread.sleep(20)
         }
@@ -84,20 +86,22 @@ class SharedNoteRepositoryTest {
         editorField.isAccessible = true
         assertSame(holderRepo, listField.get(listVm))
         assertSame(holderRepo, editorField.get(editorVm))
+        listVm.onCleared()
+        editorVm.onCleared()
     }
 
     @Test
     fun `duplicate from the editor appears in the list flow without a refresh`() {
         val original = createNoteWithContent("# Original\nbody")
-        waitFor { notesViewModel.notes.value.any { it.uri == original.uri } }
+        waitFor { repository.notes.value.any { it.uri == original.uri } }
         editorViewModel.open(original)
         waitFor { editorViewModel.content.value == "# Original\nbody" }
         var duplicated: NoteMeta? = null
         editorViewModel.duplicate { duplicated = it }
         waitFor { duplicated != null }
         assertTrue(duplicated!!.uri != original.uri)
-        waitFor { notesViewModel.notes.value.any { it.uri == duplicated!!.uri } }
-        assertEquals(duplicated!!.uri, notesViewModel.notes.value.first().uri)
+        waitFor { repository.notes.value.any { it.uri == duplicated!!.uri } }
+        assertEquals(duplicated!!.uri, repository.notes.value.first().uri)
     }
 
     @Test
@@ -105,16 +109,16 @@ class SharedNoteRepositoryTest {
         val older = createNoteWithContent("# Alpha\nfirst")
         Thread.sleep(5)
         val newer = createNoteWithContent("# Beta\nsecond")
-        waitFor { notesViewModel.notes.value.size == 2 }
-        assertEquals(newer.uri, notesViewModel.notes.value.first().uri)
+        waitFor { repository.notes.value.size == 2 }
+        assertEquals(newer.uri, repository.notes.value.first().uri)
         editorViewModel.open(older)
         waitFor { editorViewModel.content.value == "# Alpha\nfirst" }
         editorViewModel.onContentChange("# Renamed\nedited")
         editorViewModel.saveNow()
         waitFor {
-            notesViewModel.notes.value.firstOrNull()?.let { it.uri == older.uri && it.title == "Renamed" } == true
+            repository.notes.value.firstOrNull()?.let { it.uri == older.uri && it.title == "Renamed" } == true
         }
-        assertEquals(2, notesViewModel.notes.value.size)
+        assertEquals(2, repository.notes.value.size)
     }
 
     @Test
@@ -122,7 +126,6 @@ class SharedNoteRepositoryTest {
         val meta = createNoteWithContent("# Temp\nbye")
         waitFor { repository.notes.value.any { it.uri == meta.uri } }
         notesViewModel.deleteNote(meta)
-        waitFor { notesViewModel.notes.value.isEmpty() }
-        assertTrue(repository.notes.value.isEmpty())
+        waitFor { repository.notes.value.isEmpty() }
     }
 }

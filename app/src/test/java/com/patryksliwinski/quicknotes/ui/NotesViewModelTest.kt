@@ -287,6 +287,7 @@ class NotesViewModelTest {
             }
         }
         val repo = NoteRepository(app) { countingStore to false }
+        runBlocking { repo.createNote() }
         val vm = NotesViewModel(app)
         val field = NotesViewModel::class.java.getDeclaredField("repository")
         field.isAccessible = true
@@ -294,7 +295,7 @@ class NotesViewModelTest {
         vm.refresh()
         vm.refresh()
         vm.refresh()
-        waitFor { scans.get() >= 1 }
+        waitFor { repo.notes.value.isNotEmpty() }
         Thread.sleep(200)
         assertEquals(1, scans.get())
     }

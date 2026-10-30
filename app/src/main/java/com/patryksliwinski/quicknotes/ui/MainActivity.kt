@@ -22,8 +22,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.patryksliwinski.quicknotes.data.AppTheme
+import com.patryksliwinski.quicknotes.data.EditorPrefs
 import com.patryksliwinski.quicknotes.data.NoteMeta
 import com.patryksliwinski.quicknotes.data.sharedTextFromIntent
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 sealed interface Screen {
     data object List : Screen
@@ -55,7 +59,14 @@ class MainActivity : ComponentActivity() {
         handleIncomingIntent(intent)
         notesViewModel.flushPendingSaves()
         setContent {
-            QuickNotesTheme {
+            var theme by remember { mutableStateOf(AppTheme.SYSTEM) }
+            LaunchedEffect(Unit) {
+                val loaded = withContext(Dispatchers.IO) {
+                    EditorPrefs.loadTheme(this@MainActivity)
+                }
+                theme = loaded
+            }
+            QuickNotesTheme(theme) {
                 AppRoot(
                     notesViewModel,
                     handleNewNote = intent?.action == ACTION_NEW_NOTE ||
@@ -64,6 +75,7 @@ class MainActivity : ComponentActivity() {
                         pendingNewNote != null || pendingOpenNote != null || pendingSharedText != null,
                     pendingNote = pendingOpenNote ?: pendingNewNote,
                     pendingSharedText = pendingSharedText,
+                    onThemeChanged = { theme = it },
                 ) { handled ->
                     if (handled) {
                         intent = intent?.setAction(null)
@@ -136,8 +148,13 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun QuickNotesTheme(content: @Composable () -> Unit) {
-    val darkTheme = isSystemInDarkTheme()
+fun QuickNotesTheme(theme: AppTheme = AppTheme.SYSTEM, content: @Composable () -> Unit) {
+    val systemDark = isSystemInDarkTheme()
+    val darkTheme = when (theme) {
+        AppTheme.SYSTEM -> systemDark
+        AppTheme.LIGHT -> false
+        AppTheme.DARK -> true
+    }
     val colorScheme = when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && darkTheme ->
             dynamicDarkColorScheme(LocalContext.current)
@@ -155,6 +172,7 @@ fun AppRoot(
     handleNewNote: Boolean,
     pendingNote: NoteMeta?,
     pendingSharedText: String? = null,
+    onThemeChanged: (AppTheme) -> Unit = {},
     onHandled: (Boolean) -> Unit,
 ) {
     var screen by remember { mutableStateOf<Screen>(Screen.List) }
@@ -206,6 +224,7 @@ fun AppRoot(
         Screen.Settings -> SettingsScreen(
             viewModel = notesViewModel,
             onBack = { screen = Screen.List },
+            onThemeChanged = onThemeChanged,
         )
     }
 }

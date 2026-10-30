@@ -235,7 +235,7 @@ class SafNoteStore(
         val cursor = resolver.query(
             childrenUri, projection, null, null,
             DocumentsContract.Document.COLUMN_LAST_MODIFIED + " DESC"
-        ) ?: throw java.io.IOException("Could not list documents in $treeUri (volume unavailable)")
+        ) ?: throw java.io.IOException("Folder unavailable (volume unmounted or permission lost): $treeUri")
         cursor.use {
             val idIdx = it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
             val nameIdx = it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
@@ -292,9 +292,7 @@ class SafNoteStore(
 
     override suspend fun readHead(uri: String, maxBytes: Int): String {
         val docUri = Uri.parse(uri)
-        val stream = resolver.openInputStream(docUri)
-            ?: throw java.io.IOException("Could not open $uri for reading (volume unavailable)")
-        return stream.use { it.readHead(maxBytes) }
+        return openInputStreamOrThrow(docUri).use { it.readHead(maxBytes) }
     }
 
     override suspend fun createNote(): NoteMeta {
@@ -327,10 +325,12 @@ class SafNoteStore(
     }
 
     override suspend fun readNote(uri: String): String {
-        val stream = resolver.openInputStream(Uri.parse(uri))
-            ?: throw java.io.IOException("Could not open $uri for reading (volume unavailable)")
-        return stream.use { it.readBytes().toString(Charsets.UTF_8) }
+        return openInputStreamOrThrow(Uri.parse(uri)).use { it.readBytes().toString(Charsets.UTF_8) }
     }
+
+    private fun openInputStreamOrThrow(docUri: Uri): InputStream =
+        resolver.openInputStream(docUri)
+            ?: throw java.io.IOException("Note document unavailable (volume unmounted or permission lost): $docUri")
 
     override suspend fun writeNote(uri: String, content: String) {
         writeText(Uri.parse(uri), content)

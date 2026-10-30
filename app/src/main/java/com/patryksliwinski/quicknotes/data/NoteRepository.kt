@@ -12,6 +12,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
@@ -52,12 +54,23 @@ class NoteRepository(
         store = resolved
         _folderRevoked.value = revoked
         _storageName.value = resolved.displayName()
-        val listed = try {
-            resolved.listNotes()
+        var listed: List<NoteMeta>
+        var fromFallback = false
+        try {
+            listed = resolved.listNotes()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            recover(resolved) { it.listNotes() }
-            if (_errorMessage.value == null) _errorMessage.value = NoteError.StorageError
-            return@withContext
+            val fallback = recover(resolved) { it.listNotes() }
+            if (fallback == null) {
+                if (_errorMessage.value == null) _errorMessage.value = NoteError.StorageError
+                return@withContext
+            }
+            listed = fallback
+            fromFallback = true
+        }
+        if (listed.isEmpty() && !fromFallback && resolved !is InternalNoteStore) {
+            _errorMessage.value = NoteError.FolderUnavailable
         }
         _notes.value = enrichHeads(listed)
     }
@@ -73,6 +86,8 @@ class NoteRepository(
             } else {
                 val head = try {
                     store.readHead(meta.uri)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     null
                 }
@@ -112,27 +127,40 @@ class NoteRepository(
         }
     }
 
-    suspend fun readNote(uri: String): String = withContext(Dispatchers.IO) {
+    suspend fun readNote(uri: String): Result<String> = withContext(Dispatchers.IO) {
         try {
-            store.readNote(uri)
-        } catch (e: Exception) {
-            _errorMessage.value = NoteError.StorageError
-            ""
-        }
-    }
-
-    suspend fun writeNote(uri: String, content: String) = withContext(Dispatchers.IO) {
-        journal.record(uri, content)
-        try {
-            store.writeNote(uri, content)
-            journal.clear(uri)
-            val now = System.currentTimeMillis()
-            _notes.value = upsertEditedNote(_notes.value, uri, content, now)
-            scheduleWidgetRefresh()
+            Result.success(readNoteChecked(uri))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             _errorMessage.value = NoteError.StorageError
+            Result.failure(e)
+        }
+    }
+
+    private suspend fun readNoteChecked(uri: String): String {
+        val content = store.readNote(uri)
+        val meta = _notes.value.firstOrNull { it.uri == uri }
+        if (content.isEmpty() && meta != null && meta.size > 0) {
+            throw java.io.IOException("Note unreadable (volume unavailable or permission lost): $uri")
+        }
+        return content
+    }
+
+    suspend fun writeNote(uri: String, content: String) = withContext(Dispatchers.IO) {
+        journal.record(uri, content)
+        mutexFor(uri).withLock {
+            try {
+                store.writeNote(uri, content)
+                journal.clear(uri)
+                val now = System.currentTimeMillis()
+                _notes.value = upsertEditedNote(_notes.value, uri, content, now)
+                scheduleWidgetRefresh()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _errorMessage.value = NoteError.StorageError
+            }
         }
     }
 
@@ -144,14 +172,18 @@ class NoteRepository(
         _folderRevoked.value = revoked
         _storageName.value = resolved.displayName()
         for (save in pending) {
-            try {
-                resolved.writeNote(save.uri, save.content)
-                journal.clear(save.uri)
-            } catch (e: Exception) {
-                _errorMessage.value = NoteError.StorageError
+            mutexFor(save.uri).withLock {
+                try {
+                    resolved.writeNote(save.uri, save.content)
+                    journal.clear(save.uri)
+                } catch (e: Exception) {
+                    _errorMessage.value = NoteError.StorageError
+                }
             }
         }
     }
+
+    private fun mutexFor(uri: String): Mutex = writeMutexes.computeIfAbsent(uri) { Mutex() }
 
     private fun upsertEditedNote(
         current: List<NoteMeta>,
@@ -181,7 +213,7 @@ class NoteRepository(
 
     suspend fun deleteNote(meta: NoteMeta): Boolean = withContext(Dispatchers.IO) {
         try {
-            val content = store.readNote(meta.uri)
+            val content = readNoteChecked(meta.uri)
             store.deleteNote(meta.uri)
             _notes.value = _notes.value.filter { it.uri != meta.uri }
             DeletedNoteHolder.last = DeletedNote(meta, content)
@@ -216,6 +248,7 @@ class NoteRepository(
     }
 
     private companion object {
+        val writeMutexes = ConcurrentHashMap<String, Mutex>()
         const val WIDGET_REFRESH_COALESCE_MS = 2000L
     }
 

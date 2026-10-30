@@ -46,7 +46,7 @@ Requires JDK 17, Android SDK with `platforms;android-35` and `build-tools;35.0.0
 ## Workflow (summary — full version in docs/WORKFLOW.md)
 
 - Work happens on short-lived branches `vibe/<slug>` or `feat/<slug>`; PRs target `main`.
-- Every PR goes through the automated review pipeline (`.github/workflows/pr.yml`) plus the review checklist in `.github/PULL_REQUEST_TEMPLATE.md`. Reviews are done by the agent itself: after implementing a ticket, the agent reviews its own diff, pushes the review as comments on the PR, then addresses its own comments in follow-up commits. No human review step.
+- Every PR goes through the automated review pipeline (`.github/workflows/pr.yml`, static scan only — the Copilot review request was removed, it never produced reviews) plus the review checklist in `.github/PULL_REQUEST_TEMPLATE.md`. Reviews are done by the agent itself, **after CI on the final head is green** (`gh pr checks --watch`): the agent reviews its own diff *and* the CI/lint/coverage results, pushes the review as comments on the PR, then addresses its own comments in follow-up commits and re-runs CI on the new head. Merge only on the final head's green run. No human review step.
 - After each merged task, add a lesson file under `docs/lessons/` — the repo's self-improving log. **Do not skip this step.**
 
 ## Do not

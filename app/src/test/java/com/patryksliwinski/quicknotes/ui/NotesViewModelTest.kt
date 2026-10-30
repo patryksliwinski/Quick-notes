@@ -39,6 +39,8 @@ class NotesViewModelTest {
         Dispatchers.setMain(Dispatchers.Unconfined)
         app.getSharedPreferences("quicknotes_prefs", android.content.Context.MODE_PRIVATE)
             .edit().clear().commit()
+        app.getSharedPreferences("quicknotes_pending_saves", android.content.Context.MODE_PRIVATE)
+            .edit().clear().commit()
         app.filesDir.resolve("notes").deleteRecursively()
         viewModel = NotesViewModel(app)
         collectorScope = CoroutineScope(Dispatchers.Unconfined)
@@ -170,7 +172,7 @@ class NotesViewModelTest {
         runBlocking {
             val repo = NoteRepository(app)
             repo.refresh()
-            assertEquals("# Temp\nbye", repo.readNote(meta.uri))
+            assertEquals("# Temp\nbye", repo.readNote(meta.uri).getOrThrow())
         }
     }
 
@@ -308,7 +310,7 @@ class NotesViewModelTest {
         journal.record(meta.uri, "recovered after kill")
         viewModel.flushPendingSaves()
         val file = java.io.File(java.net.URI(meta.uri))
-        waitFor { file.readText() == "recovered after kill" }
+        waitFor { runCatching { file.readText() }.getOrNull() == "recovered after kill" }
         assertTrue(journal.pending().isEmpty())
     }
 

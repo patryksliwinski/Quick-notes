@@ -122,7 +122,7 @@ class SafNoteStoreTest {
         assertEquals(42L, safLastModified(-5L, now = 42L))
     }
 
-    private class FakeSafProvider(
+    private inner class FakeSafProvider(
         var childrenRows: List<Array<String>>? = emptyList(),
         var displayName: String? = null,
         var openFileFails: Boolean = false,
@@ -141,7 +141,7 @@ class SafNoteStoreTest {
                 android.content.pm.ProviderInfo::class.java, Boolean::class.javaPrimitiveType,
             )
             m.isAccessible = true
-            m.invoke(this, RuntimeEnvironment.getApplication(), info, true)
+            m.invoke(this, context, info, true)
         }
 
         override fun call(method: String, arg: String?, extras: android.os.Bundle?): android.os.Bundle? {

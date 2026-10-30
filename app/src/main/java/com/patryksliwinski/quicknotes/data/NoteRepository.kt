@@ -87,7 +87,26 @@ class NoteRepository(
         } else {
             consecutiveEmptyListings = 0
         }
-        publishEnriched(listed)
+        val retained = recentlyMutated()
+        val retainedUris = retained.map { it.uri }.toSet()
+        val refreshedListed = listed.filter { it.uri !in retainedUris }
+        _notes.value = (retained + refreshedListed).map { placeholderHead(it) }
+        _notes.value = retained + enrichHeads(refreshedListed)
+    }
+
+    private fun recentlyMutated(): List<NoteMeta> {
+        val pending = journal.pending().associateBy { it.uri }
+        if (pending.isEmpty()) return emptyList()
+        return _notes.value.mapNotNull { meta ->
+            val save = pending[meta.uri] ?: return@mapNotNull null
+            val fields = deriveHead(meta.name, save.content.take(HEAD_BYTES))
+            meta.copy(
+                title = fields.title,
+                snippet = fields.snippet,
+                size = save.content.toByteArray(Charsets.UTF_8).size.toLong(),
+                content = save.content,
+            )
+        }
     }
 
     private suspend fun publishEnriched(listed: List<NoteMeta>) {

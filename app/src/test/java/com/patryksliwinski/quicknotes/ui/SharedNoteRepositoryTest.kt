@@ -122,7 +122,7 @@ class SharedNoteRepositoryTest {
         editorViewModel.onContentChange("# Renamed\nedited")
         editorViewModel.saveNow()
         waitFor {
-            repository.notes.value.firstOrNull()?.let { it.uri == older.uri && it.title == "Renamed" } == true
+            repository.notes.value.firstOrNull()?.let { it.uri == older.uri && it.content == "# Renamed\nedited" } == true
         }
         assertEquals(2, repository.notes.value.size)
     }

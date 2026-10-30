@@ -7,6 +7,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -18,8 +19,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
+import com.patryksliwinski.quicknotes.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,6 +33,7 @@ fun EditorScreen(
     onBack: () -> Unit,
 ) {
     val content by viewModel.content.collectAsState()
+    val saveState by viewModel.saveState.collectAsState()
 
     DisposableEffect(Unit) {
         onDispose { viewModel.saveNow() }
@@ -37,7 +42,13 @@ fun EditorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(noteTitle) },
+                title = {
+                    Text(
+                        text = noteTitle,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = {
                         viewModel.saveNow()
@@ -45,9 +56,22 @@ fun EditorScreen(
                     }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.back),
                         )
                     }
+                },
+                actions = {
+                    val savedText = when (saveState) {
+                        SaveState.Saving -> stringResource(R.string.editor_saving)
+                        SaveState.Saved -> stringResource(R.string.editor_saved)
+                        null -> ""
+                    }
+                    Text(
+                        text = savedText,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(end = 16.dp),
+                    )
                 },
             )
         },
@@ -68,7 +92,7 @@ fun EditorScreen(
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
             ),
-            placeholder = { Text("Start typing…") },
+            placeholder = { Text(stringResource(R.string.editor_placeholder)) },
         )
     }
 }

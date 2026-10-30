@@ -22,7 +22,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.patryksliwinski.quicknotes.R
 import com.patryksliwinski.quicknotes.data.FolderPrefs
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,10 +53,13 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                        )
                     }
                 },
             )
@@ -66,13 +71,18 @@ fun SettingsScreen(
                 .padding(padding)
         ) {
             ListItem(
-                headlineContent = { Text("Storage folder") },
+                headlineContent = { Text(stringResource(R.string.storage_folder)) },
                 supportingContent = {
-                    Text(storageName.ifEmpty { "App-private storage" })
+                    Column {
+                        Text(stringResource(R.string.storage_folder_summary))
+                        Text(
+                            storageName.ifEmpty { stringResource(R.string.folder_default) }
+                        )
+                    }
                 },
                 trailingContent = {
                     Text(
-                        text = "Change",
+                        text = stringResource(R.string.pick_folder),
                         modifier = Modifier.padding(8.dp),
                     )
                 },

@@ -47,7 +47,7 @@ abstract class BaseWidgetProvider : AppWidgetProvider() {
 
     protected fun buildViews(context: Context): RemoteViews {
         return RemoteViews(context.packageName, widgetLayout()).apply {
-            setInt(R.id.widget_root, "setBackgroundResource", R.drawable.widget_background)
+            setInt(R.id.widget_root, "setBackgroundResource", R.drawable.widget_ripple)
         }
     }
 

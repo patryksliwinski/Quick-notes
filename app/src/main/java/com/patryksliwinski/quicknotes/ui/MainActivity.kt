@@ -5,6 +5,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.StrictMode
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -176,6 +177,11 @@ fun AppRoot(
 ) {
     var screen by remember { mutableStateOf<Screen>(Screen.List) }
     val editorViewModel: EditorViewModel = viewModel()
+
+    BackHandler(enabled = screen != Screen.List) {
+        if (screen is Screen.Editor) editorViewModel.saveNow()
+        screen = Screen.List
+    }
 
     LaunchedEffect(handleNewNote, pendingNote, pendingSharedText) {
         val note = pendingNote

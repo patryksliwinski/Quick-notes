@@ -49,7 +49,7 @@ app/src/main/java/com/patryksliwinski/quicknotes/
 
 ## Home-screen widgets
 
-All widgets extend `receiver/BaseWidgetProvider.kt`, which handles the `RemoteViews` plumbing: building the views for the widget's layout, applying the shared `@drawable/widget_background`, attaching `PendingIntent`s to view ids (`setActivityClick`), and pushing updates to `AppWidgetManager`. Shared widget text sizes/colors/paddings live in `res/values/widget_styles.xml`; all user-visible strings in `res/values/strings.xml`. Data-driven widgets load notes via `receiver/WidgetNoteLoader.kt` (`goAsync` + `Dispatchers.IO`, never disk on the main thread).
+All widgets extend `receiver/BaseWidgetProvider.kt`, which handles the `RemoteViews` plumbing: building the views for the widget's layout, applying the shared `@drawable/widget_background`, attaching `PendingIntent`s to view ids (`setActivityClick`), pushing updates to `AppWidgetManager`, and re-rendering a single widget on `onAppWidgetOptionsChanged` (resize). Widgets are resizable (`resizeMode="horizontal|vertical"` + `targetCell*`) and size-adaptive: `widgetLayoutForHeight()` in `WidgetNoteLoader.kt` maps the current height (dp, from `OPTION_APPWIDGET_MAX_HEIGHT`) to visible rows / subtitle visibility, and row containers use `0dp` + weight so content fills the widget. Shared widget text sizes/colors/paddings live in `res/values/widget_styles.xml`; all user-visible strings in `res/values/strings.xml`. Data-driven widgets load notes via `receiver/WidgetNoteLoader.kt` (`goAsync` + `Dispatchers.IO`, never disk on the main thread).
 
 ### Adding a new widget — 4 steps
 

@@ -137,8 +137,8 @@ class SafNoteStoreTest {
         val meta = store().createNoteWithContent("# Hello\nbody")
         assertEquals(created.toString(), meta.uri)
         assertTrue(meta.name.endsWith(".md"))
-        assertEquals("Hello", meta.title)
-        assertEquals("body", meta.snippet)
+        assertEquals(meta.name.removeSuffix(".md"), meta.title)
+        assertEquals("# Hello", meta.snippet)
         assertEquals(2, provider.createCalls.size)
         assertTrue(provider.callMethods.contains("android:renameDocument"))
         assertTrue(provider.callMethods.contains("android:deleteDocument"))
@@ -151,7 +151,8 @@ class SafNoteStoreTest {
         val meta = store().restoreNote("restored.md", "restored content")
         assertEquals("restored.md", meta.name)
         assertEquals(created.toString(), meta.uri)
-        assertEquals("restored content", meta.title)
+        assertEquals("restored", meta.title)
+        assertEquals("restored content", meta.snippet)
     }
 
     @Test
@@ -256,7 +257,83 @@ class SafNoteStoreTest {
         assertEquals(42L, safLastModified(-5L, now = 42L))
     }
 
-    private inner class FakeSafProvider(
+
+    @Test
+    fun `listNotes waits for an in-flight write so it never sees the mid-swap window`() {
+        val renameEntered = java.util.concurrent.CountDownLatch(1)
+        val releaseRename = java.util.concurrent.CountDownLatch(1)
+        val tmpDocUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, "XXXX-XXXX:Notes/.a.md.tmp")
+        val provider = object : FakeSafProvider(
+            displayName = "a.md",
+            childrenRows = emptyList(),
+            createResult = tmpDocUri,
+        ) {
+            override fun call(
+                method: String,
+                arg: String?,
+                extras: android.os.Bundle?,
+            ): android.os.Bundle? {
+                if (method == "android:renameDocument") {
+                    events += "rename:start"
+                    renameEntered.countDown()
+                    releaseRename.await()
+                    events += "rename:end"
+                }
+                return super.call(method, arg, extras)
+            }
+
+            override fun query(
+                uri: Uri,
+                projection: Array<String>?,
+                selection: String?,
+                selectionArgs: Array<String>?,
+                sortOrder: String?,
+            ): Cursor? {
+                if (uri.toString().contains("/children")) events += "list"
+                return super.query(uri, projection, selection, selectionArgs, sortOrder)
+            }
+        }
+        install(provider)
+        val docUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, "XXXX-XXXX:Notes/a.md")
+        val store = store()
+
+        val writer = Thread {
+            kotlinx.coroutines.runBlocking { store.writeNote(docUri.toString(), "hello") }
+        }
+        writer.start()
+        assertTrue(renameEntered.await(5, java.util.concurrent.TimeUnit.SECONDS))
+        Thread.sleep(100)
+        assertTrue(provider.events.none { it == "list" })
+
+        val lister = Thread {
+            kotlinx.coroutines.runBlocking { store.listNotes() }
+        }
+        lister.start()
+        lister.join(500)
+        assertTrue(lister.isAlive)
+        assertTrue(provider.events.none { it == "list" })
+
+        releaseRename.countDown()
+        writer.join(5000)
+        lister.join(5000)
+        assertTrue(provider.events.contains("rename:end"))
+        assertTrue(provider.events.contains("list"))
+        assertTrue(
+            "list must run after the write swap completes, was: ${provider.events}",
+            provider.events.indexOf("rename:end") < provider.events.indexOf("list"),
+        )
+    }
+
+    @Test
+    fun `mutation mutex is shared per tree uri across store instances`() {
+        val a = mutationMutexFor("content://tree/notes")
+        val b = mutationMutexFor("content://tree/notes")
+        val other = mutationMutexFor("content://tree/other")
+        assertEquals(a, b)
+        assertTrue(a !== other)
+    }
+
+    private open inner class FakeSafProvider(
         var childrenRows: List<Array<String>>? = emptyList(),
         var displayName: String? = null,
         var openFileFails: Boolean = false,
@@ -268,6 +345,7 @@ class SafNoteStoreTest {
         val createCalls = mutableListOf<Pair<Uri, String>>()
         val callMethods = mutableListOf<String>()
         val deleteCalls = mutableListOf<Pair<String, Uri>>()
+        val events = java.util.Collections.synchronizedList(mutableListOf<String>())
 
         override fun onCreate() = true
 

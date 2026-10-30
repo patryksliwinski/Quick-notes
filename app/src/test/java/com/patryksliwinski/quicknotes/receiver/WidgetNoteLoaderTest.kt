@@ -50,7 +50,7 @@ class WidgetNoteLoaderTest {
         val deadline = System.currentTimeMillis() + 5000
         while (loaded == null && System.currentTimeMillis() < deadline) Thread.sleep(20)
         assertEquals(2, loaded!!.size)
-        assertEquals(setOf("First", "Second"), loaded!!.map { it.title }.toSet())
+        assertEquals(loaded!!.map { it.name.removeSuffix(".md") }.toSet(), loaded!!.map { it.title }.toSet())
     }
 
     @Test

@@ -116,6 +116,106 @@ class SafNoteStoreTest {
     }
 
     @Test
+    fun `createNoteWithContent throws when the provider creates the document but the commit fails`() = runTest {
+        val created = DocumentsContract.buildDocumentUriUsingTree(treeUri, "XXXX-XXXX:Notes/new.md")
+        val provider = FakeSafProvider(displayName = "new.md", createResult = created, renameFails = true)
+        install(provider)
+        val exception = assertThrows(Exception::class.java) {
+            kotlinx.coroutines.runBlocking { store().createNoteWithContent("hello") }
+        }
+        assertTrue(exception.message!!.contains("Could not commit note write"))
+        assertEquals(1, provider.createCalls.size)
+        assertTrue(provider.callMethods.contains("android:renameDocument"))
+    }
+
+    @Test
+    fun `createNoteWithContent succeeds when the provider creates and renames documents`() = runTest {
+        val created = DocumentsContract.buildDocumentUriUsingTree(treeUri, "XXXX-XXXX:Notes/new.md")
+        val provider = FakeSafProvider(createResult = created)
+        install(provider)
+        val meta = store().createNoteWithContent("# Hello\nbody")
+        assertEquals(created.toString(), meta.uri)
+        assertTrue(meta.name.endsWith(".md"))
+        assertEquals("Hello", meta.title)
+        assertEquals("body", meta.snippet)
+        assertEquals(1, provider.createCalls.size)
+        assertTrue(provider.callMethods.contains("android:renameDocument"))
+        assertTrue(provider.callMethods.contains("android:deleteDocument"))
+    }
+
+    @Test
+    fun `restoreNote creates a document with the requested name`() = runTest {
+        val created = DocumentsContract.buildDocumentUriUsingTree(treeUri, "XXXX-XXXX:Notes/restored.md")
+        install(FakeSafProvider(createResult = created))
+        val meta = store().restoreNote("restored.md", "restored content")
+        assertEquals("restored.md", meta.name)
+        assertEquals(created.toString(), meta.uri)
+        assertEquals("restored content", meta.title)
+    }
+
+    @Test
+    fun `readHead returns the stream content when the document is readable`() = runTest {
+        install(FakeSafProvider())
+        val docUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, "XXXX-XXXX:Notes/a.md")
+        shadowOf(context.contentResolver).registerInputStream(
+            docUri, ByteArrayInputStream("# Head\nbody".toByteArray())
+        )
+        assertEquals("# Head\nbody", store().readHead(docUri.toString()))
+    }
+
+    @Test
+    fun `listNotes heals orphan tmp and bak documents during the scan`() = runTest {
+        val rows = listOf(
+            arrayOf("XXXX-XXXX:Notes/a.md", "a.md", "1700000000000", "10"),
+            arrayOf("XXXX-XXXX:Notes/.a.md.tmp", ".a.md.tmp", "1700000000000", "10"),
+            arrayOf("XXXX-XXXX:Notes/.b.md.bak", ".b.md.bak", "1700000000000", "10"),
+            arrayOf("XXXX-XXXX:Notes/c.md", "c.md", "1700000000000", "5"),
+        )
+        val provider = FakeSafProvider(childrenRows = rows)
+        install(provider)
+        val notes = store().listNotes()
+        assertEquals(setOf("a.md", "c.md"), notes.map { it.name }.toSet())
+        assertTrue(provider.callMethods.contains("android:deleteDocument"))
+        assertTrue(provider.callMethods.contains("android:renameDocument"))
+    }
+
+    @Test
+    fun `createNote throws IllegalStateException when the provider returns no document uri`() = runTest {
+        install(FakeSafProvider(createResult = null))
+        val exception = assertThrows(IllegalStateException::class.java) {
+            kotlinx.coroutines.runBlocking { store().createNote() }
+        }
+        assertTrue(exception.message!!.contains("Could not create note"))
+    }
+
+    @Test
+    fun `deleteNote issues the delete call for the document uri`() = runTest {
+        val provider = FakeSafProvider()
+        install(provider)
+        val docUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, "XXXX-XXXX:Notes/a.md")
+        store().deleteNote(docUri.toString())
+        assertEquals(listOf("android:deleteDocument" to docUri), provider.deleteCalls)
+    }
+
+    @Test
+    fun `displayName returns the queried tree display name`() = runTest {
+        install(FakeSafProvider(displayName = "Notes"))
+        assertEquals("Notes", store().displayName())
+    }
+
+    @Test
+    fun `displayName falls back to the last path segment when the query yields no name`() = runTest {
+        install(FakeSafProvider(displayName = null))
+        assertEquals("XXXX-XXXX%3ANotes", store().displayName())
+    }
+
+    @Test
+    fun `displayName falls back to the last path segment when the query throws`() = runTest {
+        install(FakeSafProvider(queryFails = true))
+        assertEquals("XXXX-XXXX%3ANotes", store().displayName())
+    }
+
+    @Test
     fun `safLastModified keeps positive values and replaces zero or negative with now`() {
         assertEquals(1700000000000L, safLastModified(1700000000000L, now = 42L))
         assertEquals(42L, safLastModified(0L, now = 42L))
@@ -126,8 +226,13 @@ class SafNoteStoreTest {
         var childrenRows: List<Array<String>>? = emptyList(),
         var displayName: String? = null,
         var openFileFails: Boolean = false,
+        var createResult: Uri? = null,
+        var queryFails: Boolean = false,
+        var renameFails: Boolean = false,
     ) : ContentProvider() {
         val createCalls = mutableListOf<Pair<Uri, String>>()
+        val callMethods = mutableListOf<String>()
+        val deleteCalls = mutableListOf<Pair<String, Uri>>()
 
         override fun onCreate() = true
 
@@ -145,19 +250,38 @@ class SafNoteStoreTest {
         }
 
         override fun call(method: String, arg: String?, extras: android.os.Bundle?): android.os.Bundle? {
+            callMethods += method
             if (method == "android:createDocument") {
                 val parent = extras?.getParcelable<Uri>("uri")
                 val name = extras?.getString(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
                 if (parent != null && name != null) createCalls += parent to name
-                return null
+                val result = createResult ?: return null
+                return android.os.Bundle().apply {
+                    putParcelable(DocumentsContract.EXTRA_URI, result)
+                }
             }
-            return super.call(method, arg, extras)
+            if (method == "android:deleteDocument") {
+                val uri = extras?.getParcelable<Uri>("uri")
+                if (uri != null) deleteCalls += method to uri
+                return android.os.Bundle().apply {
+                    putBoolean(DocumentsContract.EXTRA_RESULT, true)
+                }
+            }
+            if (method == "android:renameDocument") {
+                if (renameFails) return null
+                val uri = extras?.getParcelable<Uri>("uri")
+                return android.os.Bundle().apply {
+                    putParcelable(DocumentsContract.EXTRA_URI, uri)
+                }
+            }
+            return null
         }
 
         override fun query(
             uri: Uri, projection: Array<String>?, selection: String?,
             selectionArgs: Array<String>?, sortOrder: String?,
         ): Cursor? {
+            if (queryFails) throw java.io.IOException("volume unavailable")
             if (uri.toString().contains("/children")) {
                 val rows = childrenRows ?: return null
                 val all = listOf(

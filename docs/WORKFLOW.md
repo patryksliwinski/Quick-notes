@@ -42,8 +42,8 @@ Rules:
 ## Test requirements per PR
 
 - `testDebugUnitTest` green; new pure logic gets unit tests in `app/src/test/`.
-- Coverage gate: `:app:koverVerifyDebug` must pass — Kover rules in `app/build.gradle.kts` require >= 80% line and branch coverage of unit-testable code (device-only classes: Compose screens, `MainActivity`, widget/tile, `SafNoteStore` are excluded; they need an emulator).
-- Storage/SAF behavior: instrumented test or explicit note why not; CI skips emulator tests unless the `pr.yml` emulator job is enabled.
+- Coverage gate: `:app:koverVerifyDebug` must pass — Kover rules in `app/build.gradle.kts` require >= 80% line and branch coverage of unit-testable code. The exclusion list is device-only UI only (Compose screens, `MainActivity`, widget/tile RemoteViews wiring); it must never exclude the buggy surface — SAF store logic is tested via a registered fake `ContentProvider`, entry-point wiring via pure functions (issue #60).
+- Storage/SAF behavior: unit-test through fakes (`ContentProvider`, `NoteStore` fakes covering throwing AND silent-empty failure modes); a real pick-folder → create → reopen flow is instrumented (`connectedDebugAndroidTest`) or explicitly noted why not; CI skips emulator tests unless the `pr.yml` emulator job is enabled.
 - `lintDebug` adds no new warnings.
 
 ## Code review checklist

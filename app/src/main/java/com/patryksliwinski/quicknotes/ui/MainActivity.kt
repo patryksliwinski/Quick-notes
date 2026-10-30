@@ -25,7 +25,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.patryksliwinski.quicknotes.data.AppTheme
 import com.patryksliwinski.quicknotes.data.EditorPrefs
 import com.patryksliwinski.quicknotes.data.NoteMeta
-import com.patryksliwinski.quicknotes.data.sharedTextFromIntent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -95,39 +94,23 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIncomingIntent(intent: Intent?) {
-        when (intent?.action) {
-            ACTION_NEW_NOTE -> {
+        when (val request = incomingNoteRequestFromIntent(intent)) {
+            is IncomingNoteRequest.NewNote -> {
                 notesViewModel.createNote { note ->
                     // Posted to the main looper so Compose state is updated on the UI thread.
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
                         pendingNewNote = note
+                        pendingSharedText = request.sharedText
                     }
                 }
             }
-            ACTION_OPEN_NOTE -> {
-                val uri = intent.getStringExtra(EXTRA_NOTE_URI) ?: return
+            is IncomingNoteRequest.OpenNote -> {
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    pendingOpenNote = noteMetaFromUri(uri)
+                    pendingOpenNote = request.note
                 }
             }
-            Intent.ACTION_SEND -> {
-                val shared = sharedTextFromIntent(intent) ?: return
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    pendingSharedText = shared
-                }
-            }
+            null -> {}
         }
-    }
-
-    private fun noteMetaFromUri(uri: String): NoteMeta {
-        val name = uri.substringAfterLast('/')
-        return NoteMeta(
-            uri = uri,
-            name = name,
-            lastModified = 0L,
-            title = name.removeSuffix(".md"),
-            snippet = "",
-        )
     }
 
     private var pendingNewNote by mutableStateOf<NoteMeta?>(null)

@@ -6,6 +6,7 @@ Self-improving log for this repo.
 
 | Date | Lesson | File |
 |---|---|---|
+| `2026-10-30` | [The coverage gate must not exclude the buggy surface; fakes must model silent empties, not only throws — narrow Kover exclusions to device-only UI, extract entry-point logic into pure testable functions, add an empty-result fake (issue #60)](2026-10-30-coverage-gate-must-not-exclude-the-buggy-surface.md) |
 | `2026-10-30` | [A null SAF cursor/stream means "volume unavailable", never "empty folder" — throw so the list falls back with a banner and keeps the last known notes; sanitize non-positive `COLUMN_LAST_MODIFIED` (issue #59)](2026-10-30-saf-null-cursor-means-unavailable-not-empty.md) |
 | `2026-10-30` | [`grep -q` mid-pipe is a no-op (downstream filters get empty input) and YAML block scalars need single regex backslashes — the main-thread I/O golden-rule check could never fire; fixed to `grep -E ... | grep -vq ...` and smoke-tested (issue #48)](2026-10-30-ci-grep-q-swallows-pipe-no-op.md) |
 | `2026-10-30` | [CI caches Gradle via `gradle/actions/setup-gradle` in every build job — dependency + wrapper caches, no project change needed; warm runs drop from ~4–5 min to ~1–2 min (issue #47)](2026-10-30-ci-gradle-caching-setup-gradle.md) |

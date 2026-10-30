@@ -40,10 +40,7 @@ class EditorViewModelTest {
 
     @After
     fun tearDown() {
-        val deadline = System.currentTimeMillis() + 5000
-        while (viewModel.saveState.value == SaveState.Saving && System.currentTimeMillis() < deadline) {
-            Thread.sleep(20)
-        }
+        waitFor(timeoutMs = 5000) { viewModel.saveState.value != SaveState.Saving }
         Dispatchers.resetMain()
     }
 
@@ -260,13 +257,15 @@ class EditorViewModelTest {
         val meta = seed("")
         viewModel.open(meta)
         waitFor { viewModel.content.value == "" }
+        val startedAt = System.currentTimeMillis()
         viewModel.onContentChange("slow save")
-        val earlyDeadline = System.currentTimeMillis() + 500
+        val earlyDeadline = startedAt + 500
         while (System.currentTimeMillis() < earlyDeadline) {
             if (readIfExists(meta) == "slow save") break
         }
         assertTrue(readIfExists(meta) != "slow save")
         waitFor(timeoutMs = 5000) { readIfExists(meta) == "slow save" }
+        assertTrue(System.currentTimeMillis() - startedAt >= 900)
     }
 
     @Test
@@ -375,12 +374,15 @@ class EditorViewModelTest {
         val meta = NoteMeta("content://failing/doc1", "doc1.md", 0L, "doc1", "", size = 42L)
         viewModel.open(meta)
         waitFor { repo.errorMessage.value == com.patryksliwinski.quicknotes.data.NoteError.StorageError }
+        val loadFailedField = EditorViewModel::class.java.getDeclaredField("loadFailed")
+        loadFailedField.isAccessible = true
+        waitFor { loadFailedField.getBoolean(viewModel) }
         waitFor { viewModel.content.value == "" && viewModel.saveState.value == null }
         assertTrue(viewModel.hasUnsavedChanges)
         viewModel.onContentChange("typed after failure")
+        assertEquals("typed after failure", viewModel.content.value)
         Thread.sleep(600)
         assertTrue(writes.isEmpty())
-        assertEquals("typed after failure", viewModel.content.value)
         viewModel.saveNow()
         Thread.sleep(200)
         assertTrue(writes.isEmpty())

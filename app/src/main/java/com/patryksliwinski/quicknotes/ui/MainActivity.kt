@@ -5,6 +5,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.StrictMode
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -125,7 +126,6 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val ACTION_NEW_NOTE = "com.patryksliwinski.quicknotes.NEW_NOTE"
         const val ACTION_OPEN_NOTE = "com.patryksliwinski.quicknotes.OPEN_NOTE"
-        const val ACTION_SHARE_INTO_NOTE = "com.patryksliwinski.quicknotes.SHARE_INTO_NOTE"
         const val EXTRA_NOTE_URI = "com.patryksliwinski.quicknotes.extra.NOTE_URI"
     }
 }
@@ -160,6 +160,11 @@ fun AppRoot(
 ) {
     var screen by remember { mutableStateOf<Screen>(Screen.List) }
     val editorViewModel: EditorViewModel = viewModel()
+
+    BackHandler(enabled = screen != Screen.List) {
+        if (screen is Screen.Editor) editorViewModel.saveNow()
+        screen = Screen.List
+    }
 
     LaunchedEffect(handleNewNote, pendingNote, pendingSharedText) {
         val note = pendingNote

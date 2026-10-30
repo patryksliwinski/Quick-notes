@@ -11,6 +11,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -22,6 +23,11 @@ enum class NoteError {
     FolderUnavailable,
     StorageError,
     FolderPermissionLost,
+}
+
+enum class SaveOutcome {
+    Written,
+    Journaled,
 }
 
 class NoteRepository(
@@ -147,7 +153,7 @@ class NoteRepository(
         return content
     }
 
-    suspend fun writeNote(uri: String, content: String) = withContext(Dispatchers.IO) {
+    suspend fun writeNote(uri: String, content: String): SaveOutcome = withContext(Dispatchers.IO) {
         journal.record(uri, content)
         mutexFor(uri).withLock {
             try {
@@ -156,10 +162,11 @@ class NoteRepository(
                 val now = System.currentTimeMillis()
                 _notes.value = upsertEditedNote(_notes.value, uri, content, now)
                 scheduleWidgetRefresh()
+                SaveOutcome.Written
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _errorMessage.value = NoteError.StorageError
+                SaveOutcome.Journaled
             }
         }
     }
@@ -176,6 +183,8 @@ class NoteRepository(
                 try {
                     resolved.writeNote(save.uri, save.content)
                     journal.clear(save.uri)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     _errorMessage.value = NoteError.StorageError
                 }
@@ -240,10 +249,15 @@ class NoteRepository(
         widgetRefreshJob?.cancel()
         widgetRefreshJob = widgetRefreshScope.launch {
             delay(WIDGET_REFRESH_COALESCE_MS)
+            if (!isActive) return@launch
             val intent = Intent(RecentNotesWidgetProvider.ACTION_REFRESH).apply {
                 setPackage(context.packageName)
             }
-            context.sendBroadcast(intent)
+            try {
+                context.sendBroadcast(intent)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+            }
         }
     }
 

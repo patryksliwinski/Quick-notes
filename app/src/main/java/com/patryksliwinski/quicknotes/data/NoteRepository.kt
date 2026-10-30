@@ -61,7 +61,12 @@ class NoteRepository(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            listed = recover(resolved) { it.listNotes() } ?: emptyList()
+            val fallback = recover(resolved) { it.listNotes() }
+            if (fallback == null) {
+                if (_errorMessage.value == null) _errorMessage.value = NoteError.StorageError
+                return@withContext
+            }
+            listed = fallback
             fromFallback = true
         }
         if (listed.isEmpty() && !fromFallback && resolved !is InternalNoteStore) {

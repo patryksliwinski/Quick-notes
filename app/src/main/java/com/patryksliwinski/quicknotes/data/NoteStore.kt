@@ -71,6 +71,9 @@ fun deriveSnippet(name: String, head: String): String {
 fun parentDocumentUriOf(treeUri: Uri): Uri =
     DocumentsContract.buildDocumentUriUsingTree(treeUri, DocumentsContract.getTreeDocumentId(treeUri))
 
+fun safLastModified(raw: Long, now: Long = System.currentTimeMillis()): Long =
+    if (raw > 0L) raw else now
+
 private fun InputStream.readHead(maxBytes: Int): String {
     val buf = ByteArray(maxBytes)
     var read = 0
@@ -234,22 +237,22 @@ class SafNoteStore(
             DocumentsContract.Document.COLUMN_LAST_MODIFIED + " DESC"
         ) ?: throw java.io.IOException("Folder unavailable (volume unmounted or permission lost): $treeUri")
         cursor.use {
-            val idIdx = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
-            val nameIdx = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
-            val modIdx = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_LAST_MODIFIED)
-            val sizeIdx = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_SIZE)
-            while (cursor.moveToNext()) {
-                val name = cursor.getString(nameIdx) ?: continue
+            val idIdx = it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+            val nameIdx = it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+            val modIdx = it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_LAST_MODIFIED)
+            val sizeIdx = it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_SIZE)
+            while (it.moveToNext()) {
+                val name = it.getString(nameIdx) ?: continue
                 if (!isNoteFileName(name)) continue
-                val docId = cursor.getString(idIdx)
+                val docId = it.getString(idIdx)
                 val docUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, docId)
                 notes += NoteMeta(
                     uri = docUri.toString(),
                     name = name,
-                    lastModified = cursor.getLong(modIdx),
+                    lastModified = safLastModified(it.getLong(modIdx)),
                     title = "",
                     snippet = "",
-                    size = cursor.getLong(sizeIdx),
+                    size = it.getLong(sizeIdx),
                 )
             }
         }
@@ -261,16 +264,18 @@ class SafNoteStore(
             DocumentsContract.Document.COLUMN_DOCUMENT_ID,
             DocumentsContract.Document.COLUMN_DISPLAY_NAME,
         )
-        val children = resolver.query(childrenUri, projection, null, null, null)?.use { cursor ->
-            val idIdx = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
-            val nameIdx = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+        val cursor = resolver.query(childrenUri, projection, null, null, null)
+            ?: throw java.io.IOException("Could not list documents in $treeUri (volume unavailable)")
+        val children = cursor.use {
+            val idIdx = it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+            val nameIdx = it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
             val docs = mutableListOf<Pair<String, String>>()
-            while (cursor.moveToNext()) {
-                val name = cursor.getString(nameIdx) ?: continue
-                docs += cursor.getString(idIdx) to name
+            while (it.moveToNext()) {
+                val name = it.getString(nameIdx) ?: continue
+                docs += it.getString(idIdx) to name
             }
             docs
-        } ?: return
+        }
         val names = children.map { it.second }.toSet()
         for ((docId, name) in children) {
             val orphan = orphanNameOf(name) ?: continue

@@ -50,6 +50,7 @@ app/src/main/java/com/patryksliwinski/quicknotes/
 - Deletes are hard deletes. Recovery is the sync tool's versioning, not ours.
 - SAF writes go through `ContentResolver`; they can be slow (cloud folders) — that's fine because they're off the main thread and the UI is optimistic.
 - SAF `createDocument` takes the tree's **document URI** (`buildDocumentUriUsingTree(tree, getTreeDocumentId(tree))`), never the tree URI itself — removable volumes (SD cards) reject the tree URI and the write silently fails (issue #23).
+- SAF error semantics (issue #59): a **null cursor from `resolver.query()` or a null stream from `openInputStream()` means the volume is unavailable — throw, never return an empty list/`""`**; only a non-null cursor with zero rows means "empty folder". `NoteRepository.refresh` keeps the last known list and shows the revoked/unavailable banner when listing fails. `COLUMN_LAST_MODIFIED` is sanitized through `safLastModified()` because AOSP omits the column (reads as 0) for files older than ~1 year, which would otherwise sort notes to the bottom under a 1970 header.
 
 ## Durability on the quick-leave path (SLO: open < 1 s, type, leave < 100 ms)
 

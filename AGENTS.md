@@ -13,7 +13,7 @@ Quick Notes is a minimal, fast Android app for quick markdown notes. Notes are p
 3. **Never scan or parse note files on the main thread or per keystroke.** The list renders from an in-memory index (`NoteMeta`), max a few hundred entries. Search filters that index.
 4. **Stay sync-agnostic.** No Syncthing-specific logic, no conflict handling, no trash folders. Only generic hygiene: ignore dotfiles, hard deletes, unique filenames.
 5. **Smallest correct change.** No new dependencies unless already used or required by the change. No speculative abstractions.
-6. **Docs are code.** Any behavioral decision that took thought goes into `docs/lessons/` (see docs/WORKFLOW.md).
+6. **Docs are code.** Any behavioral decision that took thought goes into `docs/lessons/` — but only when it is non-obvious and would change the outcome if known earlier (see `docs/WORKFLOW.md` and `docs/lessons/README.md`).
 
 ## Build & verify
 
@@ -46,12 +46,8 @@ Requires JDK 17, Android SDK with `platforms;android-35` and `build-tools;35.0.0
 ## Workflow (summary — full version in docs/WORKFLOW.md)
 
 - Work happens on short-lived branches `vibe/<slug>` or `feat/<slug>`; PRs target `main`.
-<<<<<<< HEAD
 - Every PR goes through the automated review pipeline (`.github/workflows/pr.yml`, static scan only — the Copilot review request was removed, it never produced reviews) plus the review checklist in `.github/PULL_REQUEST_TEMPLATE.md`. Reviews are done by the agent itself, **after CI on the final head is green** (`gh pr checks --watch`): the agent reviews its own diff *and* the CI/lint/coverage results, pushes the review as comments on the PR, then addresses its own comments in follow-up commits and re-runs CI on the new head. Merge only on the final head's green run. No human review step.
-=======
-- Every PR goes through the automated review pipeline (`.github/workflows/pr-review.yml`, static scan only — the Copilot review request was removed, it never produced reviews) plus the review checklist in `.github/PULL_REQUEST_TEMPLATE.md`. Reviews are done by the agent itself, **after CI on the final head is green** (`gh pr checks --watch`): the agent reviews its own diff *and* the CI/lint/coverage results, pushes the review as comments on the PR, then addresses its own comments in follow-up commits and re-runs CI on the new head. Merge only on the final head's green run. No human review step.
->>>>>>> d11ae3e (process: CI-first review loop; drop never-productive Copilot review request and 'edited' trigger (#49))
-- After each merged task, add a lesson file under `docs/lessons/` — the repo's self-improving log. **Do not skip this step.**
+- Add a `docs/lessons/` entry **only when a task taught something non-obvious** (perf trap, API gotcha, CI failure, a decision you'd make differently) — never one per PR just to satisfy a rule, that buries the valuable entries. A PR that changes a rule in `AGENTS.md` / `docs/WORKFLOW.md` always gets one. See `docs/lessons/README.md` for how the log is organized.
 
 ## Do not
 

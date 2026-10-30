@@ -26,6 +26,9 @@ class SafDocumentUriTest {
         val treeUri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3ADocuments")
         val parent = parentDocumentUriOf(treeUri)
         assertEquals("primary:Documents", DocumentsContract.getDocumentId(parent))
-        assertEquals(treeUri, DocumentsContract.getTreeUri(parent))
+        assertEquals(
+            "content://com.android.externalstorage.documents/tree/primary%3ADocuments/document/primary%3ADocuments",
+            parent.toString()
+        )
     }
 }

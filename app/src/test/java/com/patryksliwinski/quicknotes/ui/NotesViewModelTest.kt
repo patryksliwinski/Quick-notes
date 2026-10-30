@@ -212,6 +212,24 @@ class NotesViewModelTest {
     }
 
     @Test
+    fun `query matches the full note content beyond the snippet`() {
+        val meta = createWithContent("# Alpha", "first line")
+        runBlocking {
+            val repo = NoteRepository(app)
+            repo.refresh()
+            repo.writeNote(meta.uri, "# Alpha\nfirst line\ndeep-token-in-body")
+        }
+        viewModel.refresh()
+        waitFor { viewModel.notes.value.size == 1 && viewModel.notes.value[0].content.contains("deep-token-in-body") }
+        viewModel.onQueryChange("DEEP-TOKEN")
+        waitFor { viewModel.notes.value.size == 1 && viewModel.notes.value[0].uri == meta.uri }
+        viewModel.onQueryChange("absent-token")
+        waitFor { viewModel.notes.value.isEmpty() }
+        viewModel.onQueryChange("")
+        waitFor { viewModel.notes.value.size == 1 }
+    }
+
+    @Test
     fun `query also matches the filename`() {
         val meta = createWithContent("# Alpha", "first")
         viewModel.refresh()

@@ -19,6 +19,7 @@ data class NoteMeta(
     val title: String,
     val snippet: String,
     val size: Long = 0L,
+    val content: String = "",
 )
 
 interface NoteStore {
@@ -104,6 +105,7 @@ class InternalNoteStore(private val dir: File) : NoteStore {
                     title = "",
                     snippet = "",
                     size = f.length(),
+                    content = "",
                 )
             }
             ?.sortedByDescending { it.lastModified }
@@ -129,6 +131,7 @@ class InternalNoteStore(private val dir: File) : NoteStore {
             title = deriveTitle(file.name, head),
             snippet = deriveSnippet(file.name, head),
             size = file.length(),
+            content = content,
         )
     }
 
@@ -143,6 +146,7 @@ class InternalNoteStore(private val dir: File) : NoteStore {
             title = deriveTitle(file.name, head),
             snippet = deriveSnippet(file.name, head),
             size = file.length(),
+            content = content,
         )
     }
 
@@ -253,6 +257,7 @@ class SafNoteStore(
                     title = "",
                     snippet = "",
                     size = it.getLong(sizeIdx),
+                    content = "",
                 )
             }
         }
@@ -321,6 +326,7 @@ class SafNoteStore(
             title = deriveTitle(name, head),
             snippet = deriveSnippet(name, head),
             size = content.toByteArray(Charsets.UTF_8).size.toLong(),
+            content = content,
         )
     }
 

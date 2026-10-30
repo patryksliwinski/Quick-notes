@@ -128,6 +128,7 @@ class MainActivity : ComponentActivity() {
             lastModified = 0L,
             title = name.removeSuffix(".md"),
             snippet = "",
+            content = "",
         )
     }
 

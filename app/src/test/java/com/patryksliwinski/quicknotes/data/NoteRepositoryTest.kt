@@ -154,6 +154,41 @@ class NoteRepositoryTest {
     }
 
     @Test
+    fun `a transient zero-row SAF listing keeps the last known list without an error`() = runTest {
+        var empty = false
+        val internal = InternalNoteStore(context.filesDir.resolve("notes"))
+        val flaky = object : NoteStore by internal {
+            override suspend fun listNotes(): List<NoteMeta> {
+                if (empty) return emptyList()
+                return internal.listNotes()
+            }
+        }
+        val repo = NoteRepository(context) { flaky to false }
+        val meta = repo.createNote("# Kept\nbody")!!
+        repo.refresh()
+        assertEquals(1, repo.notes.first().size)
+        repo.clearError()
+        empty = true
+        repo.refresh()
+        assertNull(repo.errorMessage.first())
+        assertEquals(listOf(meta.uri), repo.notes.first().map { it.uri })
+        assertEquals("Kept", repo.notes.first()[0].title)
+    }
+
+    @Test
+    fun `a persistent zero-row SAF listing surfaces FolderUnavailable and empties the list`() = runTest {
+        val internal = InternalNoteStore(context.filesDir.resolve("notes"))
+        val alwaysEmpty = object : NoteStore by internal {
+            override suspend fun listNotes(): List<NoteMeta> = emptyList()
+        }
+        val repo = NoteRepository(context) { alwaysEmpty to false }
+        repo.refresh()
+        repo.refresh()
+        assertEquals(NoteError.FolderUnavailable, repo.errorMessage.first())
+        assertTrue(repo.notes.first().isEmpty())
+    }
+
+    @Test
     fun `refresh surfaces FolderUnavailable when the store silently returns no notes`() = runTest {
         val repo = NoteRepository(context) { NullReturningNoteStore() to false }
         repo.refresh()

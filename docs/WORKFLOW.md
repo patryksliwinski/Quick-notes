@@ -17,20 +17,20 @@ How work happens in this repo: branches, PRs, pipelines, reviews, and the self-i
 
 ## The self-improving docs loop (docs/lessons/)
 
-`docs/lessons/` is the repo's memory. It is updated **in the same PR** that introduces the change it describes.
+`docs/lessons/` is the repo's memory. It is updated **in the same PR** that introduces the change it describes — but only for lessons worth keeping (see below).
 
 Rules:
 
-- One **file** per lesson: `docs/lessons/YYYY-MM-DD-short-slug.md`, linked from the index table in `docs/lessons/README.md` (newest first). File format:
+- One **file** per lesson: `docs/lessons/YYYY-MM-DD-short-slug.md`, linked from the index in `docs/lessons/README.md`. File format:
   ```markdown
   # YYYY-MM-DD — Short title
   - **Context:** what task/PR prompted this
   - **Lesson:** the takeaway in one or two sentences
   - **Rule now:** the concrete rule added to AGENTS.md / docs / code (if any)
   ```
-- A lesson is anything that would have changed the outcome if known earlier: a perf trap, an API gotcha, a UX decision, a CI failure, a review finding.
-- If a PR adds a rule to `AGENTS.md`, it must also add a `docs/lessons/` file explaining why.
-- Periodically (every ~10 lessons), fold recurring ones into `AGENTS.md` / `docs/WORKFLOW.md` / `docs/ARCHITECTURE.md` and mark the lesson file `(folded)` in the index.
+- **Write a lesson only when it is non-obvious and would have changed the outcome if known earlier**: a perf trap, an API gotcha, a UX decision, a CI failure, a review finding, a decision you'd make differently. Never one per PR to tick a box — a required-per-PR artifact becomes noise and buries the valuable entries (see `docs/lessons/2026-10-30-lessons-only-when-non-obvious.md`).
+- If a PR adds or changes a rule in `AGENTS.md`, it must also add a `docs/lessons/` file explaining why.
+- Keep the log small and findable: the index in `docs/lessons/README.md` is grouped **by topic** (storage/SAF, widgets, CI/release, process, app behavior), newest first within each group, with a one-line takeaway per row. If the log grows past ~40 entries, delete or fold noise entries instead of letting it sprawl — fold recurring lessons into `AGENTS.md` / `docs/WORKFLOW.md` / `docs/ARCHITECTURE.md` and mark the lesson file `(folded)` in the index.
 
 ## Pipelines (`.github/workflows/`)
 

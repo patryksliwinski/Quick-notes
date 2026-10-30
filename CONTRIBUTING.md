@@ -29,7 +29,7 @@ Read `AGENTS.md` first — it is the authoritative guide for agents and humans. 
 
 ## Lessons log
 
-Add a file under `docs/lessons/` in the same PR as the change — see `docs/WORKFLOW.md` for the format. This is how the repo improves itself.
+Add a file under `docs/lessons/` in the same PR as the change **only if the change taught something non-obvious** — see `docs/WORKFLOW.md` and `docs/lessons/README.md` for the format and organization. A log entry per PR becomes noise; a high-signal log is what makes the repo improve itself.
 
 ## What not to do
 

@@ -38,6 +38,7 @@ class InternalNoteStoreTest {
         assertEquals("", file.readText())
         assertEquals(meta.name.removeSuffix(".md"), meta.title)
         assertEquals("", meta.snippet)
+        assertEquals(0L, meta.size)
     }
 
     @Test
@@ -77,12 +78,35 @@ class InternalNoteStoreTest {
     }
 
     @Test
-    fun `listNotes derives title and snippet from file head`() = runTest {
+    fun `listNotes returns metadata without head fields and readHead provides the head`() = runTest {
         store.restoreNote("20250101-120000-abcd.md", "# Shopping\nbuy milk")
         val notes = store.listNotes()
         assertEquals(1, notes.size)
-        assertEquals("Shopping", notes[0].title)
-        assertEquals("buy milk", notes[0].snippet)
+        assertEquals("", notes[0].title)
+        assertEquals("", notes[0].snippet)
+        assertEquals("# Shopping\nbuy milk".length.toLong(), notes[0].size)
+        val fields = deriveHead(notes[0].name, store.readHead(notes[0].uri))
+        assertEquals("Shopping", fields.title)
+        assertEquals("buy milk", fields.snippet)
+    }
+
+    @Test
+    fun `readHead reads only the first maxBytes bytes`() = runTest {
+        store.restoreNote("big.md", "# Title\n" + "x".repeat(10000))
+        val meta = store.listNotes().single()
+        assertEquals(HEAD_BYTES, store.readHead(meta.uri).length)
+        assertEquals(10, store.readHead(meta.uri, maxBytes = 10).length)
+    }
+
+    @Test
+    fun `readHead of missing file throws`() = runTest {
+        var thrown = false
+        try {
+            store.readHead("file://" + temp.root.absolutePath + "/notes/missing.md")
+        } catch (e: Exception) {
+            thrown = true
+        }
+        assertTrue(thrown)
     }
 
     @Test
@@ -92,22 +116,14 @@ class InternalNoteStoreTest {
     }
 
     @Test
-    fun `listNotes reads only the first 4096 bytes for head`() = runTest {
-        val big = "# Title\n" + "x".repeat(10000)
-        store.restoreNote("big.md", big)
-        val notes = store.listNotes()
-        assertEquals("Title", notes[0].title)
-        assertTrue(notes[0].snippet.length <= 80)
-    }
-
-    @Test
     fun `listNotes picks up file added externally by sync`() = runTest {
         assertTrue(store.listNotes().isEmpty())
         java.io.File(temp.root, "notes/20250101-090000-sync.md").writeText("# Synced\nfrom git")
         val notes = store.listNotes()
         assertEquals(1, notes.size)
-        assertEquals("Synced", notes[0].title)
-        assertEquals("from git", notes[0].snippet)
+        val fields = deriveHead(notes[0].name, store.readHead(notes[0].uri))
+        assertEquals("Synced", fields.title)
+        assertEquals("from git", fields.snippet)
     }
 
     @Test

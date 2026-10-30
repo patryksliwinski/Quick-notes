@@ -183,6 +183,7 @@ class NoteRepositoryTest {
             override suspend fun createNoteWithContent(content: String): NoteMeta = throw UnsupportedOperationException()
             override suspend fun restoreNote(name: String, content: String): NoteMeta = throw UnsupportedOperationException()
             override suspend fun readNote(uri: String) = ""
+            override suspend fun readHead(uri: String, maxBytes: Int) = ""
             override suspend fun writeNote(uri: String, content: String) {}
             override suspend fun deleteNote(uri: String): Nothing = throw java.io.IOException("disk gone")
             override fun displayName() = "failing"
@@ -237,5 +238,129 @@ class NoteRepositoryTest {
         assertTrue(meta!!.uri.startsWith("file:"))
         assertEquals("shared text", repo.readNote(meta.uri))
         assertTrue(repo.folderRevoked.first())
+    }
+
+    @Test
+    fun `refresh reads heads only once per unchanged file across refreshes`() = runTest {
+        val counting = CountingNoteStore(context.filesDir.resolve("notes"))
+        val repo = NoteRepository(context) { counting to false }
+        repo.refresh()
+        val meta = repo.createNote()!!
+        repo.writeNote(meta.uri, "# Cached\nbody")
+        repo.refresh()
+        val readsAfterFirstRefresh = counting.headReads.get()
+        repo.refresh()
+        repo.refresh()
+        assertEquals(readsAfterFirstRefresh, counting.headReads.get())
+        val notes = repo.notes.first()
+        assertEquals(1, notes.size)
+        assertEquals("Cached", notes[0].title)
+        assertEquals("body", notes[0].snippet)
+    }
+
+    @Test
+    fun `refresh re-reads head only for files changed since last scan`() = runTest {
+        val counting = CountingNoteStore(context.filesDir.resolve("notes"))
+        val repo = NoteRepository(context) { counting to false }
+        repo.refresh()
+        val (a, b) = listOf(repo.createNote()!!, repo.createNote()!!)
+        repo.writeNote(a.uri, "# A\na")
+        repo.writeNote(b.uri, "# B\nb")
+        repo.refresh()
+        val notesBefore = repo.notes.first()
+        assertEquals("A", notesBefore.first { it.uri == a.uri }.title)
+        assertEquals("B", notesBefore.first { it.uri == b.uri }.title)
+        val before = counting.headReads.get()
+        repo.refresh()
+        assertEquals(before, counting.headReads.get())
+        java.io.File(java.net.URI(b.uri)).writeText("# B2\nb2 changed")
+        repo.refresh()
+        assertEquals(before + 1, counting.headReads.get())
+        val notes = repo.notes.first()
+        assertEquals("A", notes.first { it.uri == a.uri }.title)
+        assertEquals("B2", notes.first { it.uri == b.uri }.title)
+    }
+
+    @Test
+    fun `writeNote moves the edited note to the top without resorting the rest`() = runTest {
+        val (a, b, c) = listOf(
+            repository.createNote()!!,
+            repository.createNote()!!,
+            repository.createNote()!!,
+        )
+        repository.writeNote(a.uri, "# A\na")
+        repository.writeNote(b.uri, "# B\nb")
+        repository.writeNote(c.uri, "# C\nc")
+        java.io.File(java.net.URI(a.uri)).setLastModified(1000)
+        java.io.File(java.net.URI(b.uri)).setLastModified(2000)
+        java.io.File(java.net.URI(c.uri)).setLastModified(3000)
+        repository.refresh()
+        assertEquals(listOf(c.uri, b.uri, a.uri), repository.notes.first().map { it.uri })
+        repository.writeNote(a.uri, "# Alpha\nbody a")
+        val notes = repository.notes.first()
+        assertEquals(listOf(a.uri, c.uri, b.uri), notes.map { it.uri })
+        assertEquals("Alpha", notes[0].title)
+        assertEquals("body a", notes[0].snippet)
+    }
+
+    @Test
+    fun `writeNote resorts only when another note is newer than the edit`() = runTest {
+        val (a, b) = listOf(repository.createNote()!!, repository.createNote()!!)
+        repository.writeNote(a.uri, "# A\na")
+        repository.writeNote(b.uri, "# B\nb")
+        java.io.File(java.net.URI(a.uri)).setLastModified(1000)
+        java.io.File(java.net.URI(b.uri)).setLastModified(2000)
+        repository.refresh()
+        assertEquals(listOf(b.uri, a.uri), repository.notes.first().map { it.uri })
+        java.io.File(java.net.URI(b.uri)).setLastModified(Long.MAX_VALUE - 1)
+        repository.refresh()
+        repository.writeNote(a.uri, "# Alpha\nbody a")
+        assertEquals(listOf(b.uri, a.uri), repository.notes.first().map { it.uri })
+        assertEquals("Alpha", repository.notes.first().first { it.uri == a.uri }.title)
+    }
+
+    @Test
+    fun `refresh falls back to file name when head read fails`() = runTest {
+        val broken = object : NoteStore by InternalNoteStore(context.filesDir.resolve("notes")) {
+            override suspend fun readHead(uri: String, maxBytes: Int): String =
+                throw java.io.IOException("head unavailable")
+        }
+        val repo = NoteRepository(context) { broken to false }
+        val meta = repo.createNote()!!
+        repo.refresh()
+        val notes = repo.notes.first()
+        assertEquals(1, notes.size)
+        assertEquals(meta.name.removeSuffix(".md"), notes[0].title)
+        assertEquals("", notes[0].snippet)
+    }
+
+    @Test
+    fun `writeNote for a note not in the list leaves the list unchanged`() = runTest {
+        val external = InternalNoteStore(context.filesDir.resolve("elsewhere"))
+        val meta = external.createNote()
+        repository.refresh()
+        assertTrue(repository.notes.first().isEmpty())
+        repository.writeNote(meta.uri, "# Outside\nnot listed")
+        assertTrue(repository.notes.first().isEmpty())
+        external.deleteNote(meta.uri)
+    }
+
+    private class CountingNoteStore(dir: java.io.File) : NoteStore {
+        private val delegate = InternalNoteStore(dir)
+        val headReads = java.util.concurrent.atomic.AtomicInteger(0)
+
+        override suspend fun listNotes() = delegate.listNotes()
+        override suspend fun createNote() = delegate.createNote()
+        override suspend fun createNoteWithContent(content: String) = delegate.createNoteWithContent(content)
+        override suspend fun restoreNote(name: String, content: String) = delegate.restoreNote(name, content)
+        override suspend fun readNote(uri: String) = delegate.readNote(uri)
+        override suspend fun writeNote(uri: String, content: String) = delegate.writeNote(uri, content)
+        override suspend fun deleteNote(uri: String) = delegate.deleteNote(uri)
+        override fun displayName() = delegate.displayName()
+
+        override suspend fun readHead(uri: String, maxBytes: Int): String {
+            headReads.incrementAndGet()
+            return delegate.readHead(uri, maxBytes)
+        }
     }
 }

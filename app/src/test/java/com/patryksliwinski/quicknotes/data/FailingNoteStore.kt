@@ -25,6 +25,9 @@ class FailingNoteStore(
     override suspend fun readNote(uri: String): String =
         throw IllegalStateException("cannot read")
 
+    override suspend fun readHead(uri: String, maxBytes: Int): String =
+        throw IllegalStateException("cannot read")
+
     override suspend fun writeNote(uri: String, content: String) {
         throw IllegalStateException("cannot write")
     }

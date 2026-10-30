@@ -9,9 +9,10 @@ import com.patryksliwinski.quicknotes.data.NoteListRow
 import com.patryksliwinski.quicknotes.data.NoteMeta
 import com.patryksliwinski.quicknotes.data.NoteRepository
 import com.patryksliwinski.quicknotes.data.NoteSortOrder
-import com.patryksliwinski.quicknotes.data.filterNotes
+import com.patryksliwinski.quicknotes.data.filterNotesPrecomputed
 import com.patryksliwinski.quicknotes.data.groupByDay
 import com.patryksliwinski.quicknotes.data.sortNotes
+import com.patryksliwinski.quicknotes.data.toSearchEntries
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -38,8 +39,12 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     private val _confirmDelete = MutableStateFlow(ListPrefs.loadConfirmDelete(application))
     val confirmDelete: StateFlow<Boolean> = _confirmDelete
 
-    val notes: StateFlow<List<NoteMeta>> = combine(repository.notes, _query, _sortOrder) { all, q, order ->
-        sortNotes(filterNotes(all, q), order)
+    val notes: StateFlow<List<NoteMeta>> = combine(
+        repository.notes.map { all -> all.toSearchEntries() },
+        _query,
+        _sortOrder,
+    ) { entries, q, order ->
+        sortNotes(filterNotesPrecomputed(entries, q), order)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val listRows: StateFlow<List<NoteListRow>> = notes

@@ -26,6 +26,35 @@ class NoteNamingTest {
     }
 
     @Test
+    fun `concurrent name generation is thread-safe and never corrupts names`() {
+        val names = java.util.concurrent.ConcurrentLinkedQueue<String>()
+        val threads = (1..8).map {
+            Thread {
+                repeat(200) { names += newNoteFileName() }
+            }
+        }
+        threads.forEach { it.start() }
+        threads.forEach { it.join() }
+        assertEquals(1600, names.size)
+        assertTrue(names.all { Regex("""\d{8}-\d{6}-[a-z0-9]{4}\.md""").matches(it) })
+        assertTrue(names.toSet().size >= 1500)
+    }
+
+    @Test
+    fun `deriveHead combines title and snippet derivation`() {
+        val fields = deriveHead("x.md", "# Shopping\nbuy milk")
+        assertEquals(HeadFields(title = "Shopping", snippet = "buy milk"), fields)
+    }
+
+    @Test
+    fun `deriveHead on empty head falls back to file name`() {
+        assertEquals(
+            HeadFields(title = "20250101-120000-abcd", snippet = ""),
+            deriveHead("20250101-120000-abcd.md", ""),
+        )
+    }
+
+    @Test
     fun `title derives from first markdown heading`() {
         assertEquals("Shopping", deriveTitle("x.md", "# Shopping\n\nbuy milk"))
     }

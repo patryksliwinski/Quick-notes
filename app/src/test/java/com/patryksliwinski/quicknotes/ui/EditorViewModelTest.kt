@@ -61,6 +61,8 @@ class EditorViewModelTest {
 
     private fun fileOf(meta: NoteMeta) = java.io.File(java.net.URI(meta.uri))
 
+    private fun fileExists(meta: NoteMeta) = fileOf(meta).isFile
+
     @Test
     fun `open loads note content`() {
         val meta = seed("# Title\nhello")
@@ -194,13 +196,13 @@ class EditorViewModelTest {
         viewModel.undo()
         assertEquals("", viewModel.content.value)
         viewModel.saveNow()
-        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "" }
+        waitFor(timeoutMs = 5000) { fileExists(meta) && fileOf(meta).readText() == "" }
         viewModel.redo()
         assertEquals("typed text", viewModel.content.value)
         assertTrue(viewModel.canUndo.value)
         assertFalse(viewModel.canRedo.value)
         viewModel.saveNow()
-        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "typed text" }
+        waitFor(timeoutMs = 5000) { fileExists(meta) && fileOf(meta).readText() == "typed text" }
     }
 
     @Test

@@ -92,7 +92,7 @@ class NoteRepository(
         val refreshedListed = listed.filter { it.uri !in retainedUris }
         val previous = _notes.value.associateBy { it.uri }
         _notes.value = (retained + refreshedListed).map { placeholderHead(it, previous[it.uri]) }
-        _notes.value = retained + enrichHeads(refreshedListed)
+        _notes.value = retained + enrichHeads(refreshedListed, previous)
     }
 
     private fun recentlyMutated(): List<NoteMeta> {
@@ -110,7 +110,7 @@ class NoteRepository(
         }
     }
 
-    private fun placeholderHead(meta: NoteMeta, prior: NoteMeta? = null): NoteMeta {
+    private fun placeholderHead(meta: NoteMeta, prior: NoteMeta?): NoteMeta {
         val cached = contentCache[HeadKey(meta.uri, meta.lastModified, meta.size)]
         if (cached != null) {
             val fields = deriveHead(meta.name, cached.take(HEAD_BYTES))
@@ -123,7 +123,7 @@ class NoteRepository(
         return meta.copy(title = fields.title, snippet = fields.snippet, content = "")
     }
 
-    private suspend fun enrichHeads(listed: List<NoteMeta>): List<NoteMeta> {
+    private suspend fun enrichHeads(listed: List<NoteMeta>, previous: Map<String, NoteMeta>): List<NoteMeta> {
         val nextHeads = HashMap<HeadKey, HeadFields>(listed.size * 2)
         val nextContents = HashMap<HeadKey, String>(listed.size * 2)
         val enriched = listed.map { meta ->
@@ -152,9 +152,15 @@ class NoteRepository(
                     fields = derived
                     content = full
                 } else {
-                    val derived = deriveHead(meta.name, "")
-                    fields = derived
-                    content = ""
+                    val prior = previous[meta.uri]
+                    if (prior != null && prior.content.isNotEmpty()) {
+                        fields = HeadFields(prior.title, prior.snippet)
+                        content = prior.content
+                    } else {
+                        val derived = deriveHead(meta.name, "")
+                        fields = derived
+                        content = ""
+                    }
                 }
             }
             meta.copy(title = fields.title, snippet = fields.snippet, content = content)

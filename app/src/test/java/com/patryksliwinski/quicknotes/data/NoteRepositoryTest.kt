@@ -516,8 +516,8 @@ class NoteRepositoryTest {
         val meta = repo.createNote("# Recovered\nbody")!!
         repo.refresh()
         assertEquals(meta.name.removeSuffix(".md"), repo.notes.first()[0].title)
-        assertEquals("", repo.notes.first()[0].snippet)
-        assertEquals("", repo.notes.first()[0].content)
+        assertEquals("# Recovered", repo.notes.first()[0].snippet)
+        assertEquals("# Recovered\nbody", repo.notes.first()[0].content)
         fail = false
         repo.refresh()
         val notes = repo.notes.first()

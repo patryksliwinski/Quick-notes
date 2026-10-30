@@ -96,7 +96,7 @@ class NoteRepository(
         _notes.value = enrichHeads(listed)
     }
 
-    private fun placeholderHead(meta: NoteMeta, prior: NoteMeta?): NoteMeta {
+    private fun placeholderHead(meta: NoteMeta, prior: NoteMeta? = null): NoteMeta {
         val cached = contentCache[HeadKey(meta.uri, meta.lastModified, meta.size)]
         if (cached != null) {
             val fields = deriveHead(meta.name, cached.take(HEAD_BYTES))

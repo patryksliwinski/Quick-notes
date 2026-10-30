@@ -24,18 +24,19 @@ app/src/main/java/com/patryksliwinski/quicknotes/
 
 ## Data flow
 
-1. `NoteRepository.refresh()` resolves the active `NoteStore` (SAF tree if a persisted writable URI permission exists, else internal dir) and loads `List<NoteMeta>` (uri, name, mtime, title, snippet) into a `StateFlow`.
-2. The list screen renders from that flow; search/sort/day-grouping/count are pure `combine()` transforms over it (`data/NoteListLogic.kt`) — no disk access. Sort order and confirm-before-delete are UI prefs in `ListPrefs` (same SharedPreferences file as the folder URI).
+1. `NoteRepository.refresh()` resolves the active `NoteStore` (SAF tree if a persisted writable URI permission exists, else internal dir) and loads `List<NoteMeta>` (uri, name, mtime, size) into a `StateFlow`. Title/snippet come from `store.readHead(uri)` (first 4 KiB) via a repository-side cache keyed by `(uri, lastModified, size)` — a refresh re-reads heads only for files that changed since the last scan, so SAF folders pay one `query()` per refresh instead of one `openInputStream` per note.
+2. The list screen renders from that flow; search/sort/day-grouping/count are pure `combine()` transforms over it (`data/NoteListLogic.kt`, `data/NoteSearch.kt`) — search matches against lowercase forms computed once per list change, no disk access. Sort order and confirm-before-delete are UI prefs in `ListPrefs` (same SharedPreferences file as the folder URI).
 3. Create: optimistic insert into the flow + background `store.createNote()` (empty file; `createNoteWithContent(content)` for share/duplicate — a single write, no read-modify-write). Editor opens immediately. Share (`ACTION_SEND` → `EXTRA_TEXT`/`EXTRA_STREAM`) and the launcher static shortcut (`res/xml/shortcuts.xml` → `ACTION_NEW_NOTE`) both create a new note; shared text prefills the editor through the debounced autosave.
-4. Edit: `EditorViewModel.onContentChange` debounces 400 ms, then `repository.writeNote` on `Dispatchers.IO`; the flow entry's title/snippet/mtime update optimistically in-memory.
+4. Edit: `EditorViewModel.onContentChange` debounces 400 ms, then `repository.writeNote` on `Dispatchers.IO`; the flow entry's title/snippet/mtime update in place (the edited note is always the newest, so it moves to the top without a full re-sort).
 5. Delete: remove from flow instantly, delete the document on `Dispatchers.IO`, keep the last deleted note for one-tap undo (restores the file with original content).
-6. `onResume` re-runs `refresh()` — this is how externally synced changes appear (no FileObserver on SAF paths).
-7. `NoteRepository` create/edit/delete/restore broadcast a package-scoped `ACTION_REFRESH`, which `RecentNotesWidgetProvider` answers by re-running `onUpdate` (goAsync + `Dispatchers.IO`) — widgets never rescan per keystroke, only on mutations and host updates.
+6. `onResume` re-runs `refresh()` — this is how externally synced changes appear (no FileObserver on SAF paths); thanks to the head cache, repeat refreshes are cheap.
+7. `NoteRepository` create/edit/delete/restore broadcast a package-scoped `ACTION_REFRESH`, coalesced to at most one broadcast per 2 s so a burst of autosaves triggers a single widget rescan; `RecentNotesWidgetProvider` answers it by re-running `onUpdate` (goAsync + `Dispatchers.IO`), reading heads only for the top-N visible rows — widgets never rescan per keystroke, only on mutations and host updates.
 
 ## Storage decisions
 
 - **Markdown files are the source of truth**; the in-memory list is a rebuildable index. Never persist derived state that can't be rebuilt from the folder.
-- Filenames `yyyyMMdd-HHmmss-<rand36>.md` are sortable and collision-resistant across devices.
+- `NoteStore.listNotes()` returns metadata only (no file content reads); head-derived fields are cached in-memory keyed by `(uri, lastModified, size)` and invalidated by mtime/size change — SAF listings stay one `query()`, never one IPC per note.
+- Filenames `yyyyMMdd-HHmmss-<rand36>.md` are sortable and collision-resistant across devices; the timestamp formatter is thread-safe (`DateTimeFormatter`, not `SimpleDateFormat`).
 - Dotfiles are ignored (generic hygiene — keeps sync-tool marker files out of the list without naming any tool).
 - Deletes are hard deletes. Recovery is the sync tool's versioning, not ours.
 - SAF writes go through `ContentResolver`; they can be slow (cloud folders) — that's fine because they're off the main thread and the UI is optimistic.
@@ -45,7 +46,8 @@ app/src/main/java/com/patryksliwinski/quicknotes/
 
 - Tap widget/tile/`+` → editable note well under 1 s (no heavy init on the quick path; DB-free).
 - List scroll, search, delete feel instant at ≤ a few hundred notes.
-- No I/O on the main thread, ever (enforced by convention + debug `StrictMode`).
+- A refresh of a SAF folder costs one `query()` plus head reads only for notes changed since the last scan; widget updates read heads only for visible rows.
+- No I/O on the main thread, ever (enforced by debug `StrictMode` disk penalties in `MainActivity` + convention).
 
 ## Home-screen widgets
 

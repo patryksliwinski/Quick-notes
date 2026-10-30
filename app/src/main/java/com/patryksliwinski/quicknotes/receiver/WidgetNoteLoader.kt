@@ -3,6 +3,7 @@ package com.patryksliwinski.quicknotes.receiver
 import android.content.BroadcastReceiver
 import android.content.Context
 import com.patryksliwinski.quicknotes.data.NoteMeta
+import com.patryksliwinski.quicknotes.data.deriveHead
 import com.patryksliwinski.quicknotes.data.resolveNoteStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -74,7 +75,16 @@ object WidgetNoteLoader {
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             val notes = try {
                 withContext(Dispatchers.IO) {
-                    recentNotes(resolveNoteStore(appContext).first.listNotes(), limit)
+                    val store = resolveNoteStore(appContext).first
+                    recentNotes(store.listNotes(), limit).map { meta ->
+                        val head = try {
+                            store.readHead(meta.uri)
+                        } catch (e: Exception) {
+                            ""
+                        }
+                        val fields = deriveHead(meta.name, head)
+                        meta.copy(title = fields.title, snippet = fields.snippet)
+                    }
                 }
             } catch (e: Exception) {
                 emptyList()

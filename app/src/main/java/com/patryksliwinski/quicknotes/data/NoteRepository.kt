@@ -4,10 +4,16 @@ import android.content.Context
 import android.content.Intent
 import com.patryksliwinski.quicknotes.receiver.RecentNotesWidgetProvider
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.ConcurrentHashMap
 
 enum class NoteError {
     CreateFailed,
@@ -22,6 +28,7 @@ class NoteRepository(
 ) {
 
     private var store: NoteStore = InternalNoteStore(context.filesDir.resolve("notes"))
+    private val headCache = ConcurrentHashMap<HeadKey, HeadFields>()
     private val _notes = MutableStateFlow<List<NoteMeta>>(emptyList())
     val notes: StateFlow<List<NoteMeta>> = _notes
     private val _folderRevoked = MutableStateFlow(false)
@@ -44,11 +51,32 @@ class NoteRepository(
         store = resolved
         _folderRevoked.value = revoked
         _storageName.value = resolved.displayName()
-        _notes.value = try {
+        val listed = try {
             resolved.listNotes()
         } catch (e: Exception) {
             recover(resolved) { it.listNotes() } ?: emptyList()
         }
+        _notes.value = enrichHeads(listed)
+    }
+
+    private suspend fun enrichHeads(listed: List<NoteMeta>): List<NoteMeta> {
+        val next = HashMap<HeadKey, HeadFields>(listed.size * 2)
+        val enriched = listed.map { meta ->
+            val key = HeadKey(meta.uri, meta.lastModified, meta.size)
+            val fields = headCache[key] ?: run {
+                val head = try {
+                    store.readHead(meta.uri)
+                } catch (e: Exception) {
+                    ""
+                }
+                deriveHead(meta.name, head)
+            }
+            next[key] = fields
+            meta.copy(title = fields.title, snippet = fields.snippet)
+        }
+        headCache.clear()
+        headCache.putAll(next)
+        return enriched
     }
 
     suspend fun createNote(): NoteMeta? = createNote("")
@@ -62,7 +90,7 @@ class NoteRepository(
         }
         if (note == null) return@withContext null
         _notes.value = listOf(note) + _notes.value
-        requestWidgetRefresh()
+        scheduleWidgetRefresh()
         note
     }
 
@@ -70,7 +98,7 @@ class NoteRepository(
         try {
             val restored = store.restoreNote(meta.name, content)
             _notes.value = listOf(restored) + _notes.value.filter { it.uri != meta.uri }
-            requestWidgetRefresh()
+            scheduleWidgetRefresh()
         } catch (e: Exception) {
             _errorMessage.value = NoteError.StorageError
         }
@@ -88,19 +116,37 @@ class NoteRepository(
     suspend fun writeNote(uri: String, content: String) = withContext(Dispatchers.IO) {
         try {
             store.writeNote(uri, content)
-            _notes.value = _notes.value.map { meta ->
-                if (meta.uri == uri) {
-                    val head = content.take(4096)
-                    meta.copy(
-                        title = deriveTitle(meta.name, head),
-                        snippet = deriveSnippet(meta.name, head),
-                        lastModified = System.currentTimeMillis(),
-                    )
-                } else meta
-            }.sortedByDescending { it.lastModified }
-            requestWidgetRefresh()
+            val now = System.currentTimeMillis()
+            _notes.value = upsertEditedNote(_notes.value, uri, content, now)
+            scheduleWidgetRefresh()
         } catch (e: Exception) {
             _errorMessage.value = NoteError.StorageError
+        }
+    }
+
+    private fun upsertEditedNote(
+        current: List<NoteMeta>,
+        uri: String,
+        content: String,
+        now: Long,
+    ): List<NoteMeta> {
+        val head = content.take(HEAD_BYTES)
+        val index = current.indexOfFirst { it.uri == uri }
+        if (index < 0) return current
+        val existing = current[index]
+        val fields = deriveHead(existing.name, head)
+        val updated = existing.copy(
+            title = fields.title,
+            snippet = fields.snippet,
+            lastModified = now,
+            size = content.toByteArray(Charsets.UTF_8).size.toLong(),
+        )
+        headCache[HeadKey(uri, now, updated.size)] = fields
+        val others = current.filterIndexed { i, _ -> i != index }
+        return if (others.any { it.lastModified > now }) {
+            (others + updated).sortedByDescending { it.lastModified }
+        } else {
+            listOf(updated) + others
         }
     }
 
@@ -110,7 +156,7 @@ class NoteRepository(
             store.deleteNote(meta.uri)
             _notes.value = _notes.value.filter { it.uri != meta.uri }
             DeletedNoteHolder.last = DeletedNote(meta, content)
-            requestWidgetRefresh()
+            scheduleWidgetRefresh()
             true
         } catch (e: CancellationException) {
             throw e
@@ -126,11 +172,22 @@ class NoteRepository(
         restoreNote(last.meta, last.content)
     }
 
-    private fun requestWidgetRefresh() {
-        val intent = Intent(RecentNotesWidgetProvider.ACTION_REFRESH).apply {
-            setPackage(context.packageName)
+    private val widgetRefreshScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var widgetRefreshJob: Job? = null
+
+    private fun scheduleWidgetRefresh() {
+        widgetRefreshJob?.cancel()
+        widgetRefreshJob = widgetRefreshScope.launch {
+            delay(WIDGET_REFRESH_COALESCE_MS)
+            val intent = Intent(RecentNotesWidgetProvider.ACTION_REFRESH).apply {
+                setPackage(context.packageName)
+            }
+            context.sendBroadcast(intent)
         }
-        context.sendBroadcast(intent)
+    }
+
+    private companion object {
+        const val WIDGET_REFRESH_COALESCE_MS = 2000L
     }
 
     private suspend fun <T> recover(failed: NoteStore, retry: suspend (NoteStore) -> T): T? {

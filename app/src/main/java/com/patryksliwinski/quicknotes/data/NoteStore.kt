@@ -6,8 +6,9 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import java.io.File
 import java.io.InputStream
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.random.Random
 
@@ -17,6 +18,7 @@ data class NoteMeta(
     val lastModified: Long,
     val title: String,
     val snippet: String,
+    val size: Long = 0L,
 )
 
 interface NoteStore {
@@ -25,15 +27,26 @@ interface NoteStore {
     suspend fun createNoteWithContent(content: String): NoteMeta
     suspend fun restoreNote(name: String, content: String): NoteMeta
     suspend fun readNote(uri: String): String
+    suspend fun readHead(uri: String, maxBytes: Int = HEAD_BYTES): String
     suspend fun writeNote(uri: String, content: String)
     suspend fun deleteNote(uri: String)
     fun displayName(): String
 }
 
-private val FILENAME_DATE = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US)
+const val HEAD_BYTES = 4096
+
+data class HeadKey(val uri: String, val lastModified: Long, val size: Long)
+
+data class HeadFields(val title: String, val snippet: String)
+
+fun deriveHead(name: String, head: String): HeadFields =
+    HeadFields(title = deriveTitle(name, head), snippet = deriveSnippet(name, head))
+
+private val FILENAME_DATE: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.US).withZone(ZoneId.systemDefault())
 
 fun newNoteFileName(): String {
-    val ts = FILENAME_DATE.format(Date())
+    val ts = FILENAME_DATE.format(Instant.now())
     val suffix = Random.nextInt(36 * 36 * 36 * 36)
         .toString(36).padStart(4, '0')
     return "$ts-$suffix.md"
@@ -58,10 +71,6 @@ fun deriveSnippet(name: String, head: String): String {
 fun parentDocumentUriOf(treeUri: Uri): Uri =
     DocumentsContract.buildDocumentUriUsingTree(treeUri, DocumentsContract.getTreeDocumentId(treeUri))
 
-private fun readHead(uri: Uri, resolver: android.content.ContentResolver, maxBytes: Int = 4096): String {
-    return resolver.openInputStream(uri)?.use { it.readHead(maxBytes) } ?: ""
-}
-
 private fun InputStream.readHead(maxBytes: Int): String {
     val buf = ByteArray(maxBytes)
     var read = 0
@@ -84,17 +93,21 @@ class InternalNoteStore(private val dir: File) : NoteStore {
         return dir.listFiles()
             ?.filter { it.isFile && it.name.endsWith(".md") && !it.name.startsWith(".") }
             ?.map { f ->
-                val head = f.inputStream().use { it.readHead(4096) }
                 NoteMeta(
                     uri = f.toURI().toString(),
                     name = f.name,
                     lastModified = f.lastModified(),
-                    title = deriveTitle(f.name, head),
-                    snippet = deriveSnippet(f.name, head),
+                    title = "",
+                    snippet = "",
+                    size = f.length(),
                 )
             }
             ?.sortedByDescending { it.lastModified }
             ?: emptyList()
+    }
+
+    override suspend fun readHead(uri: String, maxBytes: Int): String {
+        return toFile(uri).inputStream().use { it.readHead(maxBytes) }
     }
 
     override suspend fun createNote(): NoteMeta {
@@ -104,20 +117,28 @@ class InternalNoteStore(private val dir: File) : NoteStore {
     override suspend fun createNoteWithContent(content: String): NoteMeta {
         val file = File(dir, newNoteFileName())
         file.writeText(content)
-        val head = content.take(4096)
+        val head = content.take(HEAD_BYTES)
         return NoteMeta(
             uri = file.toURI().toString(),
             name = file.name,
             lastModified = file.lastModified(),
             title = deriveTitle(file.name, head),
             snippet = deriveSnippet(file.name, head),
+            size = file.length(),
         )
     }
 
     override suspend fun restoreNote(name: String, content: String): NoteMeta {
         val file = File(dir, name)
         file.writeText(content)
-        return NoteMeta(file.toURI().toString(), file.name, file.lastModified(), file.name.removeSuffix(".md"), "")
+        return NoteMeta(
+            uri = file.toURI().toString(),
+            name = file.name,
+            lastModified = file.lastModified(),
+            title = file.name.removeSuffix(".md"),
+            snippet = "",
+            size = file.length(),
+        )
     }
 
     private fun toFile(uri: String): File = File(java.net.URI(uri).path ?: "")
@@ -165,22 +186,28 @@ class SafNoteStore(
             val idIdx = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
             val nameIdx = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
             val modIdx = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_LAST_MODIFIED)
+            val sizeIdx = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_SIZE)
             while (cursor.moveToNext()) {
                 val name = cursor.getString(nameIdx) ?: continue
                 if (!name.endsWith(".md") || name.startsWith(".")) continue
                 val docId = cursor.getString(idIdx)
                 val docUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, docId)
-                val head = readHead(docUri, resolver)
                 notes += NoteMeta(
                     uri = docUri.toString(),
                     name = name,
                     lastModified = cursor.getLong(modIdx),
-                    title = deriveTitle(name, head),
-                    snippet = deriveSnippet(name, head),
+                    title = "",
+                    snippet = "",
+                    size = cursor.getLong(sizeIdx),
                 )
             }
         }
         return notes
+    }
+
+    override suspend fun readHead(uri: String, maxBytes: Int): String {
+        val docUri = Uri.parse(uri)
+        return resolver.openInputStream(docUri)?.use { it.readHead(maxBytes) } ?: ""
     }
 
     override suspend fun createNote(): NoteMeta {
@@ -201,13 +228,14 @@ class SafNoteStore(
         if (content.isNotEmpty()) {
             writeText(uri, content)
         }
-        val head = if (content.isNotEmpty()) content.take(4096) else ""
+        val head = if (content.isNotEmpty()) content.take(HEAD_BYTES) else ""
         return NoteMeta(
             uri = uri.toString(),
             name = name,
             lastModified = System.currentTimeMillis(),
             title = deriveTitle(name, head),
             snippet = deriveSnippet(name, head),
+            size = content.toByteArray(Charsets.UTF_8).size.toLong(),
         )
     }
 

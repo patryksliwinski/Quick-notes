@@ -22,14 +22,14 @@ Read `AGENTS.md` first — it is the authoritative guide for agents and humans. 
 
 ## Pull requests
 
-- Fill in every section of `.github/PULL_REQUEST_TEMPLATE.md`. The **Lessons** checkbox applies only when the PR taught something non-obvious.
-- The `pr-review` workflow posts an automated review comment; resolve its blocking findings.
-- CI (`ci.yml`) must be green: unit tests, `assembleDebug`, `lintDebug`.
+- Fill in every section of `.github/PULL_REQUEST_TEMPLATE.md`, including **Lessons**.
+- The `CI` workflow (`pr.yml`) posts an automated review comment on PRs; resolve its blocking findings.
+- Its `build-and-test` job must be green: unit tests, `assembleDebug`, `lintDebug`, coverage gate.
 - Merge requires green CI + no blocking automated findings. There is no human approval step: the implementing agent self-reviews its diff, posts the review as PR comments, then fixes those comments in follow-up commits (see docs/WORKFLOW.md).
 
 ## Lessons log
 
-Add a file under `docs/lessons/` in the same PR as the change — **only if** the change taught something non-obvious (perf trap, API gotcha, CI failure, a decision you'd make differently). See `docs/WORKFLOW.md` for the format. This is how the repo improves itself; requiring an entry on every PR just fills it with noise.
+Add a file under `docs/lessons/` in the same PR as the change — see `docs/WORKFLOW.md` for the format. This is how the repo improves itself.
 
 ## What not to do
 

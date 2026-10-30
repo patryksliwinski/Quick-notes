@@ -8,6 +8,7 @@ Self-improving log for this repo. High-signal only: a lesson goes here **only wh
 
 | Date | Lesson | File |
 |---|---|---|
+| `2026-10-30` | [A null SAF cursor/stream means "volume unavailable", never "empty folder" — throw so the list falls back with a banner and keeps the last known notes; sanitize non-positive `COLUMN_LAST_MODIFIED` (issue #59)](2026-10-30-saf-null-cursor-means-unavailable-not-empty.md) |
 | `2026-10-30` | [Durability path must be synchronous (`commit()`, not `apply()`); SAF failures must throw, never return `""` — silent empty reads get autosaved over real files (issue #58)](2026-10-30-journal-record-must-commit-saf-failures-must-throw.md) |
 | `2026-10-30` | [One NoteRepository per process, shared by all ViewModels via an app-scoped holder — a repository owning a mutable index is a single source of truth only if there is one instance (issue #57)](2026-10-30-one-note-repository-per-process-shared-by-viewmodels.md) |
 | `2026-10-30` | [Serialized note writes: per-URI mutex in `NoteRepository` because cancelled jobs still finish their IO write; `saveNow` commits via `saveJob`; tests quiesce before `resetMain` and survive the tmp→rename window (PR #39)](2026-10-30-serialized-note-writes-mutex-and-noncancelable-save.md) |

@@ -27,7 +27,7 @@
 - [ ] Instrumented test added, or reason why not (SAF/device-only paths)
 
 ## Lessons
-- [ ] Added a file under `docs/lessons/` (+ index row) describing what this PR taught us (required if any non-trivial decision was made)
+- [ ] Added a file under `docs/lessons/` (+ index row) — only if this PR taught something non-obvious (perf trap, API gotcha, CI failure, a decision you'd make differently); otherwise leave this unchecked
 - [ ] Updated `AGENTS.md` / `docs/WORKFLOW.md` / `docs/ARCHITECTURE.md` if a rule changed (required if behavior contract changed)
 
 ## Agent self-review

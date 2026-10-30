@@ -13,7 +13,7 @@ Quick Notes is a minimal, fast Android app for quick markdown notes. Notes are p
 3. **Never scan or parse note files on the main thread or per keystroke.** The list renders from an in-memory index (`NoteMeta`), max a few hundred entries. Search filters that index.
 4. **Stay sync-agnostic.** No Syncthing-specific logic, no conflict handling, no trash folders. Only generic hygiene: ignore dotfiles, hard deletes, unique filenames.
 5. **Smallest correct change.** No new dependencies unless already used or required by the change. No speculative abstractions.
-6. **Docs are code.** Any behavioral decision that took thought goes into `docs/lessons/` (see docs/WORKFLOW.md).
+6. **Docs are code.** A lesson goes into `docs/lessons/` **only if** the change taught something non-obvious — a perf trap, an API gotcha, a CI failure, a decision you'd make differently (see docs/WORKFLOW.md). Routine changes need no lesson.
 
 ## Build & verify
 
@@ -47,7 +47,7 @@ Requires JDK 17, Android SDK with `platforms;android-35` and `build-tools;35.0.0
 
 - Work happens on short-lived branches `vibe/<slug>` or `feat/<slug>`; PRs target `main`.
 - Every PR goes through the automated review pipeline (`.github/workflows/pr-review.yml`) plus the review checklist in `.github/PULL_REQUEST_TEMPLATE.md`. Reviews are done by the agent itself: after implementing a ticket, the agent reviews its own diff, pushes the review as comments on the PR, then addresses its own comments in follow-up commits. No human review step.
-- After each merged task, add a lesson file under `docs/lessons/` — the repo's self-improving log. **Do not skip this step.**
+- After each merged task, add a lesson file under `docs/lessons/` **only if** the task taught something non-obvious (perf trap, API gotcha, CI failure, a decision you'd make differently) — the repo's self-improving log. Routine changes skip it.
 
 ## Do not
 

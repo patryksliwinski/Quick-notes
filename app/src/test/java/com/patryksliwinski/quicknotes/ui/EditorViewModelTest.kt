@@ -250,7 +250,10 @@ class EditorViewModelTest {
         viewModel.open(meta)
         waitFor { viewModel.content.value == "" }
         viewModel.onContentChange("slow save")
-        Thread.sleep(500)
+        val earlyDeadline = System.currentTimeMillis() + 500
+        while (System.currentTimeMillis() < earlyDeadline) {
+            if (fileOf(meta).readText() == "slow save") break
+        }
         assertTrue(fileOf(meta).readText() != "slow save")
         waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "slow save" }
     }

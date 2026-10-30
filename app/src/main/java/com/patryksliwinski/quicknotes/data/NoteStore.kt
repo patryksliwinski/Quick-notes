@@ -261,7 +261,7 @@ class SafNoteStore(
                 )
             }
         }
-        return notes
+        return notes.sortedByDescending { it.lastModified }
     }
 
     private fun healOrphanedSafDocuments() {
@@ -334,6 +334,10 @@ class SafNoteStore(
         return openInputStreamOrThrow(Uri.parse(uri)).use { it.readBytes().toString(Charsets.UTF_8) }
     }
 
+    private fun openOutputStreamOrThrow(docUri: Uri): java.io.OutputStream =
+        resolver.openOutputStream(docUri, "w")
+            ?: throw java.io.IOException("Note document not writable (volume unmounted or permission lost): $docUri")
+
     private fun openInputStreamOrThrow(docUri: Uri): InputStream =
         resolver.openInputStream(docUri)
             ?: throw java.io.IOException("Note document unavailable (volume unmounted or permission lost): $docUri")
@@ -359,7 +363,7 @@ class SafNoteStore(
         val tmp = DocumentsContract.createDocument(resolver, parentDocumentUri, "application/octet-stream", tmpName)
         try {
             if (tmp != null) {
-                resolver.openOutputStream(tmp, "w")?.use { it.write(content.toByteArray(Charsets.UTF_8)) }
+                openOutputStreamOrThrow(tmp).use { it.write(content.toByteArray(Charsets.UTF_8)) }
                 val bak = runCatching {
                     DocumentsContract.renameDocument(resolver, uri, ".$targetName.bak")
                 }.getOrNull()
@@ -376,7 +380,7 @@ class SafNoteStore(
                     runCatching { DocumentsContract.deleteDocument(resolver, bak) }
                 }
             } else {
-                resolver.openOutputStream(uri, "w")?.use { it.write(content.toByteArray(Charsets.UTF_8)) }
+                openOutputStreamOrThrow(uri).use { it.write(content.toByteArray(Charsets.UTF_8)) }
             }
         } finally {
             tmp?.let { runCatching { DocumentsContract.deleteDocument(resolver, it) } }

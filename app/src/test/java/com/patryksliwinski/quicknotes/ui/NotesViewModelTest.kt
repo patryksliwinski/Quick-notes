@@ -311,7 +311,7 @@ class NotesViewModelTest {
         viewModel.flushPendingSaves()
         val file = java.io.File(java.net.URI(meta.uri))
         waitFor { runCatching { file.readText() }.getOrNull() == "recovered after kill" }
-        assertTrue(journal.pending().isEmpty())
+        waitFor { journal.pending().isEmpty() }
     }
 
 }

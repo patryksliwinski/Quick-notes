@@ -44,8 +44,8 @@ class UndoStackTest {
         stack.push("b")
         assertEquals("b", stack.undo("c"))
         assertEquals("a", stack.undo("b"))
-        assertEquals("a", stack.redo("a"))
-        assertEquals("b", stack.redo("a2"))
+        assertEquals("b", stack.redo("a"))
+        assertEquals("c", stack.redo("b"))
         assertFalse(stack.canRedo)
         assertNull(stack.redo("b"))
     }

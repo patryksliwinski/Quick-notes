@@ -104,7 +104,7 @@ jobs:
               else
                 echo "- ✅ Storage changes contain no sync-specific logic."
               fi
-              if git diff origin/main...HEAD -- '*.kt' | grep -qE 'Dispatchers\.Main' | grep -v 'withContext(Dispatchers\.Main)' || git diff origin/main...HEAD -- '*.kt' -- . ':(exclude)**/src/test/**' | grep -qE 'runBlocking|Thread\.sleep'; then
+              if git diff origin/main...HEAD -- '*.kt' ':(exclude)**/src/test/**' | grep -E 'Dispatchers\.Main' | grep -vq 'withContext(Dispatchers\.Main)' || git diff origin/main...HEAD -- '*.kt' ':(exclude)**/src/test/**' | grep -qE 'runBlocking|Thread\.sleep'; then
                 echo "- ❌ Possible main-thread/blocking I/O in changed code — move to Dispatchers.IO."
                 findings=1
               else

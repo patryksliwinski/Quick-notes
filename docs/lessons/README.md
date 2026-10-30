@@ -6,6 +6,7 @@ Self-improving log for this repo.
 
 | Date | Lesson | File |
 |---|---|---|
+| `2026-10-30` | [A null SAF cursor/stream means "volume unavailable", never "empty folder" — throw so the list falls back with a banner and keeps the last known notes; sanitize non-positive `COLUMN_LAST_MODIFIED` (issue #59)](2026-10-30-saf-null-cursor-means-unavailable-not-empty.md) |
 | `2026-10-30` | [One CI workflow per pipeline — never duplicate the Gradle build across workflows; pass the verdict via `needs.<job>.result`, never re-run (issue #46)](2026-10-30-single-ci-workflow-no-duplicate-builds.md) |
 | `2026-10-30` | [Lessons are required only when non-obvious, not on every PR — a required-per-PR artifact becomes noise and buries the valuable entries (issue #50)](2026-10-30-lessons-only-when-non-obvious.md) |
 | `2026-10-30` | [One-line notes must have an empty snippet (no title duplication); failed/empty SAF head reads must not be cached, so SD-card rows recover on the next refresh (issue #43)](2026-10-30-one-line-note-snippet-empty-failed-head-not-cached.md) |

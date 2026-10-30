@@ -103,6 +103,28 @@ class NoteRepositoryTest {
     }
 
     @Test
+    fun `refresh keeps the last known list when the folder becomes unreadable`() = runTest {
+        var fail = false
+        val internal = InternalNoteStore(context.filesDir.resolve("notes"))
+        val flaky = object : NoteStore by internal {
+            override suspend fun listNotes(): List<NoteMeta> {
+                if (fail) throw java.io.IOException("SD card unavailable")
+                return internal.listNotes()
+            }
+        }
+        val repo = NoteRepository(context) { flaky to false }
+        val meta = repo.createNote("# Kept\nbody")!!
+        repo.refresh()
+        assertEquals(1, repo.notes.first().size)
+        fail = true
+        repo.refresh()
+        assertEquals(NoteError.FolderUnavailable, repo.errorMessage.first())
+        assertTrue(repo.folderRevoked.first())
+        assertEquals(listOf(meta.uri), repo.notes.first().map { it.uri })
+        assertEquals("Kept", repo.notes.first()[0].title)
+    }
+
+    @Test
     fun `writeNote failure sets StorageError and does not crash`() = runTest {
         val repo = NoteRepository(context) { FailingNoteStore(failCreate = false) to false }
         repo.refresh()

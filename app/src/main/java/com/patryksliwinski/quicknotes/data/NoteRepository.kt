@@ -55,7 +55,9 @@ class NoteRepository(
         val listed = try {
             resolved.listNotes()
         } catch (e: Exception) {
-            recover(resolved) { it.listNotes() } ?: emptyList()
+            recover(resolved) { it.listNotes() }
+            if (_errorMessage.value == null) _errorMessage.value = NoteError.StorageError
+            return@withContext
         }
         _notes.value = enrichHeads(listed)
     }

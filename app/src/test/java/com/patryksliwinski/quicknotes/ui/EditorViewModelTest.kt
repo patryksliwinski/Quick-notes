@@ -222,6 +222,32 @@ class EditorViewModelTest {
     }
 
     @Test
+    fun `failed note load does not autosave empty content over the real file`() {
+        val writes = mutableListOf<String>()
+        val store = object : com.patryksliwinski.quicknotes.data.FailingNoteStore(failCreate = false) {
+            override suspend fun writeNote(uri: String, content: String) {
+                writes.add(content)
+            }
+        }
+        val repo = com.patryksliwinski.quicknotes.data.NoteRepository(app) { store to false }
+        val field = EditorViewModel::class.java.getDeclaredField("repository")
+        field.isAccessible = true
+        field.set(viewModel, repo)
+        val meta = NoteMeta("content://failing/doc1", "doc1.md", 0L, "doc1", "", size = 42L)
+        viewModel.open(meta)
+        waitFor { repo.errorMessage.value == com.patryksliwinski.quicknotes.data.NoteError.StorageError }
+        assertEquals("", viewModel.content.value)
+        assertTrue(viewModel.hasUnsavedChanges)
+        viewModel.onContentChange("typed after failure")
+        Thread.sleep(600)
+        assertTrue(writes.isEmpty())
+        assertEquals("typed after failure", viewModel.content.value)
+        viewModel.saveNow()
+        Thread.sleep(200)
+        assertTrue(writes.isEmpty())
+    }
+
+    @Test
     fun `hasUnsavedChanges is true after saveNow while a newer keystroke is still pending`() {
         val meta = seed("before")
         viewModel.open(meta)

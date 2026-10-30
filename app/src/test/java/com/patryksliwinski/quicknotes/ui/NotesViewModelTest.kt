@@ -170,7 +170,7 @@ class NotesViewModelTest {
         runBlocking {
             val repo = NoteRepository(app)
             repo.refresh()
-            assertEquals("# Temp\nbye", repo.readNote(meta.uri))
+            assertEquals("# Temp\nbye", repo.readNote(meta.uri).getOrThrow())
         }
     }
 

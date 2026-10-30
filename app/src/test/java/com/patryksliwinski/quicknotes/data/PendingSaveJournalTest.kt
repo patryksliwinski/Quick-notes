@@ -67,4 +67,53 @@ class PendingSaveJournalTest {
         val pending = journal.pending()
         assertEquals(listOf(PendingSave("file:///notes/ok.md", "ok")), pending)
     }
+
+    @Test
+    fun `record is synchronous so a process kill cannot lose the journaled content`() {
+        val recordingPrefs = object : android.content.SharedPreferences by
+            context.getSharedPreferences("quicknotes_pending_saves", android.content.Context.MODE_PRIVATE) {
+            var committed = false
+            override fun edit(): android.content.SharedPreferences.Editor {
+                val delegate = super.edit()
+                return object : android.content.SharedPreferences.Editor by delegate {
+                    override fun commit(): Boolean {
+                        committed = true
+                        return delegate.commit()
+                    }
+                    override fun apply() {
+                        throw AssertionError("record must not use async apply() on the durability path")
+                    }
+                }
+            }
+        }
+        val durableJournal = PendingSaveJournal(recordingPrefs)
+        durableJournal.record("file:///notes/a.md", "typed before kill")
+        assertTrue(recordingPrefs.getString("file:///notes/a.md", null) != null)
+        assertEquals("typed before kill", durableJournal.pending().single().content)
+    }
+
+    @Test
+    fun `clear stays asynchronous`() {
+        val recordingPrefs = object : android.content.SharedPreferences by
+            context.getSharedPreferences("quicknotes_pending_saves", android.content.Context.MODE_PRIVATE) {
+            var applyCalled = false
+            override fun edit(): android.content.SharedPreferences.Editor {
+                val delegate = super.edit()
+                return object : android.content.SharedPreferences.Editor by delegate {
+                    override fun commit(): Boolean {
+                        throw AssertionError("clear may stay async and must not use commit()")
+                    }
+                    override fun apply() {
+                        applyCalled = true
+                        delegate.apply()
+                    }
+                }
+            }
+        }
+        val journal = PendingSaveJournal(recordingPrefs)
+        recordingPrefs.edit().putString("file:///notes/a.md", "{\"content\":\"x\"}").commit()
+        journal.clear("file:///notes/a.md")
+        assertTrue(applyCalled)
+        assertTrue(journal.pending().isEmpty())
+    }
 }

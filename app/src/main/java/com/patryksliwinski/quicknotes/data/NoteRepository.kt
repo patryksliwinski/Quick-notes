@@ -52,10 +52,18 @@ class NoteRepository(
         store = resolved
         _folderRevoked.value = revoked
         _storageName.value = resolved.displayName()
-        val listed = try {
-            resolved.listNotes()
+        var listed: List<NoteMeta>
+        var fromFallback = false
+        try {
+            listed = resolved.listNotes()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            recover(resolved) { it.listNotes() } ?: emptyList()
+            listed = recover(resolved) { it.listNotes() } ?: emptyList()
+            fromFallback = true
+        }
+        if (listed.isEmpty() && !fromFallback && resolved !is InternalNoteStore) {
+            _errorMessage.value = NoteError.FolderUnavailable
         }
         _notes.value = enrichHeads(listed)
     }
@@ -71,6 +79,8 @@ class NoteRepository(
             } else {
                 val head = try {
                     store.readHead(meta.uri)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     null
                 }
@@ -110,13 +120,24 @@ class NoteRepository(
         }
     }
 
-    suspend fun readNote(uri: String): String = withContext(Dispatchers.IO) {
+    suspend fun readNote(uri: String): Result<String> = withContext(Dispatchers.IO) {
         try {
-            store.readNote(uri)
+            Result.success(readNoteChecked(uri))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             _errorMessage.value = NoteError.StorageError
-            ""
+            Result.failure(e)
         }
+    }
+
+    private suspend fun readNoteChecked(uri: String): String {
+        val content = store.readNote(uri)
+        val meta = _notes.value.firstOrNull { it.uri == uri }
+        if (content.isEmpty() && meta != null && meta.size > 0) {
+            throw java.io.IOException("Note unreadable (volume unavailable or permission lost): $uri")
+        }
+        return content
     }
 
     suspend fun writeNote(uri: String, content: String) = withContext(Dispatchers.IO) {
@@ -179,7 +200,7 @@ class NoteRepository(
 
     suspend fun deleteNote(meta: NoteMeta): Boolean = withContext(Dispatchers.IO) {
         try {
-            val content = store.readNote(meta.uri)
+            val content = readNoteChecked(meta.uri)
             store.deleteNote(meta.uri)
             _notes.value = _notes.value.filter { it.uri != meta.uri }
             DeletedNoteHolder.last = DeletedNote(meta, content)

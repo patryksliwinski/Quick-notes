@@ -33,6 +33,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     private var noteUri: String? = null
     private var saveJob: Job? = null
     private var savedContent: String? = null
+    private var loadFailed = false
 
     val hasUnsavedChanges: Boolean
         get() = noteUri != null && _content.value != savedContent
@@ -42,15 +43,25 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         noteUri = meta.uri
         saveJob?.cancel()
         _saveState.value = null
+        loadFailed = false
         if (prefill != null) {
             savedContent = null
             onContentChange(prefill)
         } else {
             viewModelScope.launch {
-                val loaded = repository.readNote(meta.uri)
-                _content.value = loaded
-                savedContent = loaded
-                _saveState.value = SaveState.Saved
+                repository.readNote(meta.uri).fold(
+                    onSuccess = { loaded ->
+                        _content.value = loaded
+                        savedContent = loaded
+                        _saveState.value = SaveState.Saved
+                    },
+                    onFailure = {
+                        loadFailed = true
+                        _content.value = ""
+                        savedContent = null
+                        _saveState.value = null
+                    },
+                )
             }
         }
     }
@@ -68,6 +79,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     fun onContentChange(text: String) {
         _content.value = text
         val uri = noteUri ?: return
+        if (loadFailed) return
         _saveState.value = SaveState.Saving
         saveJob?.cancel()
         saveJob = viewModelScope.launch {
@@ -82,6 +94,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
 
     fun saveNow() {
         val uri = noteUri ?: return
+        if (loadFailed) return
         val text = _content.value
         saveJob?.cancel()
         _saveState.value = SaveState.Saving

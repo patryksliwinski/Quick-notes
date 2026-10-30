@@ -43,7 +43,7 @@ class SharedNoteRepositoryTest {
         collectorJob = collectorScope.launch { notesViewModel.notes.collect { } }
         collectorScope.launch { notesViewModel.listRows.collect { } }
         notesViewModel.refresh()
-        waitFor { notesViewModel.storageName.value.isNotEmpty() }
+        waitFor { repository.storageName.value.isNotEmpty() }
     }
 
     @After

@@ -13,6 +13,7 @@ import com.patryksliwinski.quicknotes.data.filterNotesPrecomputed
 import com.patryksliwinski.quicknotes.data.groupByDay
 import com.patryksliwinski.quicknotes.data.sortNotes
 import com.patryksliwinski.quicknotes.data.toSearchEntries
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -28,7 +29,7 @@ import kotlinx.coroutines.Dispatchers
 
 class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository = NoteRepository(application)
+    private var repository = NoteRepository(application)
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query
@@ -58,7 +59,12 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     private val _deleteEvents = MutableSharedFlow<NoteMeta?>(extraBufferCapacity = 1)
     val deleteEvents: SharedFlow<NoteMeta?> = _deleteEvents.asSharedFlow()
 
-    fun refresh() = viewModelScope.launch { repository.refresh() }
+    private var refreshJob: Job? = null
+
+    fun refresh() {
+        if (refreshJob?.isActive == true) return
+        refreshJob = viewModelScope.launch { repository.refresh() }
+    }
 
     fun onQueryChange(q: String) {
         _query.value = q
@@ -91,4 +97,6 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun undoDelete() = viewModelScope.launch { repository.undoDelete() }
+
+    fun flushPendingSaves() = viewModelScope.launch { repository.flushPendingSaves() }
 }

@@ -51,7 +51,11 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     private var contentDirty = false
     private var saveJob: Job? = null
     private var lastSaved: String = ""
+    private var savedContent: String? = null
     private var restoring = false
+
+    val hasUnsavedChanges: Boolean
+        get() = noteUri != null && _content.value != savedContent
 
     fun open(meta: NoteMeta, prefill: String? = null) {
         if (noteUri == meta.uri && _content.value.isNotEmpty()) return
@@ -65,6 +69,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         restoring = false
         syncUndoFlags()
         if (prefill != null) {
+            savedContent = null
             onContentChange(prefill)
         } else {
             viewModelScope.launch {
@@ -72,6 +77,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
                 if (generation != openGeneration || contentDirty) return@launch
                 _content.value = text
                 lastSaved = text
+                savedContent = text
                 _saveState.value = SaveState.Saved
                 _fontSizeSp.value = withContext(Dispatchers.IO) {
                     EditorPrefs.loadFontSizeSp(getApplication())
@@ -118,6 +124,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             commitSnapshot(text)
             repository.writeNote(uri, text)
+            savedContent = text
             _saveState.value = SaveState.Saved
         }
     }
@@ -141,6 +148,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
             delay(debounce)
             commitSnapshot(text)
             repository.writeNote(uri, text)
+            savedContent = text
             _saveState.value = SaveState.Saved
         }
     }

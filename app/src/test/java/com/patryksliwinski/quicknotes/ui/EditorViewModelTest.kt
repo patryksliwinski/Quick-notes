@@ -325,4 +325,39 @@ class EditorViewModelTest {
     fun `duplicate without an open note does not crash`() {
         viewModel.duplicate { fail("should not be called without an open note") }
     }
+
+    @Test
+    fun `hasUnsavedChanges is false right after open and true after typing`() {
+        val meta = seed("saved content")
+        viewModel.open(meta)
+        waitFor { viewModel.content.value == "saved content" }
+        assertEquals(false, viewModel.hasUnsavedChanges)
+        viewModel.onContentChange("edited")
+        assertEquals(true, viewModel.hasUnsavedChanges)
+    }
+
+    @Test
+    fun `hasUnsavedChanges is false again once the autosave completes`() {
+        val meta = seed("")
+        viewModel.open(meta)
+        waitFor { viewModel.saveState.value == SaveState.Saved }
+        viewModel.onContentChange("typed")
+        assertEquals(true, viewModel.hasUnsavedChanges)
+        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "typed" }
+        waitFor { viewModel.hasUnsavedChanges == false }
+    }
+
+    @Test
+    fun `hasUnsavedChanges is true after saveNow while a newer keystroke is still pending`() {
+        val meta = seed("before")
+        viewModel.open(meta)
+        waitFor { viewModel.content.value == "before" }
+        viewModel.onContentChange("first")
+        viewModel.saveNow()
+        waitFor { fileOf(meta).readText() == "first" }
+        viewModel.onContentChange("second")
+        assertEquals(true, viewModel.hasUnsavedChanges)
+        waitFor(timeoutMs = 5000) { fileOf(meta).readText() == "second" }
+        waitFor { viewModel.hasUnsavedChanges == false }
+    }
 }

@@ -57,6 +57,7 @@ class MainActivity : ComponentActivity() {
             )
         }
         handleIncomingIntent(intent)
+        notesViewModel.flushPendingSaves()
         setContent {
             var theme by remember { mutableStateOf(AppTheme.SYSTEM) }
             LaunchedEffect(Unit) {

@@ -28,6 +28,7 @@ class NoteRepository(
 ) {
 
     private var store: NoteStore = InternalNoteStore(context.filesDir.resolve("notes"))
+    private val journal = PendingSaveJournal(context)
     private val headCache = ConcurrentHashMap<HeadKey, HeadFields>()
     private val _notes = MutableStateFlow<List<NoteMeta>>(emptyList())
     val notes: StateFlow<List<NoteMeta>> = _notes
@@ -114,13 +115,34 @@ class NoteRepository(
     }
 
     suspend fun writeNote(uri: String, content: String) = withContext(Dispatchers.IO) {
+        journal.record(uri, content)
         try {
             store.writeNote(uri, content)
+            journal.clear(uri)
             val now = System.currentTimeMillis()
             _notes.value = upsertEditedNote(_notes.value, uri, content, now)
             scheduleWidgetRefresh()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             _errorMessage.value = NoteError.StorageError
+        }
+    }
+
+    suspend fun flushPendingSaves() = withContext(Dispatchers.IO) {
+        val pending = journal.pending()
+        if (pending.isEmpty()) return@withContext
+        val (resolved, revoked) = storeProvider()
+        store = resolved
+        _folderRevoked.value = revoked
+        _storageName.value = resolved.displayName()
+        for (save in pending) {
+            try {
+                resolved.writeNote(save.uri, save.content)
+                journal.clear(save.uri)
+            } catch (e: Exception) {
+                _errorMessage.value = NoteError.StorageError
+            }
         }
     }
 

@@ -90,8 +90,9 @@ class InternalNoteStore(private val dir: File) : NoteStore {
     }
 
     override suspend fun listNotes(): List<NoteMeta> {
+        healOrphanedNoteFiles(dir)
         return dir.listFiles()
-            ?.filter { it.isFile && it.name.endsWith(".md") && !it.name.startsWith(".") }
+            ?.filter { it.isFile && isNoteFileName(it.name) }
             ?.map { f ->
                 NoteMeta(
                     uri = f.toURI().toString(),
@@ -148,7 +149,27 @@ class InternalNoteStore(private val dir: File) : NoteStore {
     }
 
     override suspend fun writeNote(uri: String, content: String) {
-        toFile(uri).writeText(content)
+        val file = toFile(uri)
+        val tmp = File(file.parentFile, ".${file.name}.tmp")
+        tmp.writeText(content)
+        if (file.exists()) {
+            val bak = File(file.parentFile, ".${file.name}.bak")
+            if (bak.exists()) bak.delete()
+            if (!file.renameTo(bak)) {
+                tmp.delete()
+                throw java.io.IOException("Could not stage note write for $uri")
+            }
+            try {
+                if (!tmp.renameTo(file)) throw java.io.IOException("Could not commit note write for $uri")
+            } finally {
+                bak.delete()
+            }
+        } else {
+            if (!tmp.renameTo(file)) {
+                tmp.delete()
+                throw java.io.IOException("Could not create note file for $uri")
+            }
+        }
     }
 
     override suspend fun deleteNote(uri: String) {
@@ -156,6 +177,33 @@ class InternalNoteStore(private val dir: File) : NoteStore {
     }
 
     override fun displayName(): String = "App-private storage"
+}
+
+fun isNoteFileName(name: String): Boolean =
+    name.endsWith(".md") && !name.startsWith(".")
+
+fun orphanNameOf(noteName: String): String? = when {
+    noteName.startsWith(".") && noteName.endsWith(".tmp") ->
+        noteName.removePrefix(".").removeSuffix(".tmp").ifEmpty { null }
+    noteName.startsWith(".") && noteName.endsWith(".bak") ->
+        noteName.removePrefix(".").removeSuffix(".bak").ifEmpty { null }
+    else -> null
+}
+
+fun healOrphanedNoteFiles(dir: File) {
+    val files = dir.listFiles() ?: return
+    for (f in files) {
+        val orphan = orphanNameOf(f.name) ?: continue
+        if (!orphan.endsWith(".md") || orphan.startsWith(".")) continue
+        val target = File(dir, orphan)
+        if (target.exists()) {
+            f.delete()
+        } else if (f.name.endsWith(".bak") && f.renameTo(target)) {
+            continue
+        } else {
+            f.delete()
+        }
+    }
 }
 
 class SafNoteStore(
@@ -172,6 +220,7 @@ class SafNoteStore(
         get() = parentDocumentUriOf(treeUri)
 
     override suspend fun listNotes(): List<NoteMeta> {
+        healOrphanedSafDocuments()
         val projection = arrayOf(
             DocumentsContract.Document.COLUMN_DOCUMENT_ID,
             DocumentsContract.Document.COLUMN_DISPLAY_NAME,
@@ -189,7 +238,7 @@ class SafNoteStore(
             val sizeIdx = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_SIZE)
             while (cursor.moveToNext()) {
                 val name = cursor.getString(nameIdx) ?: continue
-                if (!name.endsWith(".md") || name.startsWith(".")) continue
+                if (!isNoteFileName(name)) continue
                 val docId = cursor.getString(idIdx)
                 val docUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, docId)
                 notes += NoteMeta(
@@ -203,6 +252,35 @@ class SafNoteStore(
             }
         }
         return notes
+    }
+
+    private fun healOrphanedSafDocuments() {
+        val projection = arrayOf(
+            DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+            DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+        )
+        val children = resolver.query(childrenUri, projection, null, null, null)?.use { cursor ->
+            val idIdx = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+            val nameIdx = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+            val docs = mutableListOf<Pair<String, String>>()
+            while (cursor.moveToNext()) {
+                val name = cursor.getString(nameIdx) ?: continue
+                docs += cursor.getString(idIdx) to name
+            }
+            docs
+        } ?: return
+        val names = children.map { it.second }.toSet()
+        for ((docId, name) in children) {
+            val orphan = orphanNameOf(name) ?: continue
+            val docUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, docId)
+            if (names.contains(orphan)) {
+                runCatching { DocumentsContract.deleteDocument(resolver, docUri) }
+            } else if (name.endsWith(".bak")) {
+                runCatching { DocumentsContract.renameDocument(resolver, docUri, orphan) }
+            } else {
+                runCatching { DocumentsContract.deleteDocument(resolver, docUri) }
+            }
+        }
     }
 
     override suspend fun readHead(uri: String, maxBytes: Int): String {
@@ -266,8 +344,21 @@ class SafNoteStore(
         try {
             if (tmp != null) {
                 resolver.openOutputStream(tmp, "w")?.use { it.write(content.toByteArray(Charsets.UTF_8)) }
-                DocumentsContract.deleteDocument(resolver, uri)
-                DocumentsContract.renameDocument(resolver, tmp, targetName)
+                val bak = runCatching {
+                    DocumentsContract.renameDocument(resolver, uri, ".$targetName.bak")
+                }.getOrNull()
+                val renamed = runCatching {
+                    DocumentsContract.renameDocument(resolver, tmp, targetName)
+                }.getOrNull()
+                if (renamed == null) {
+                    if (bak != null) {
+                        runCatching { DocumentsContract.renameDocument(resolver, bak, targetName) }
+                    }
+                    throw java.io.IOException("Could not commit note write for $uri")
+                }
+                if (bak != null) {
+                    runCatching { DocumentsContract.deleteDocument(resolver, bak) }
+                }
             } else {
                 resolver.openOutputStream(uri, "w")?.use { it.write(content.toByteArray(Charsets.UTF_8)) }
             }

@@ -56,7 +56,9 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     private var saveJob: Job? = null
     private var lastSaved = ""
     private var savedContent: String? = null
+    @Volatile
     private var restoring = false
+    @Volatile
     private var loadFailed = false
 
     val hasUnsavedChanges: Boolean
@@ -84,6 +86,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
                     text to EditorPrefs.loadFontSizeSp(getApplication())
                 }
                 if (generation != openGeneration || contentDirty) return@launch
+                loadFailed = loaded.first.isFailure
                 loaded.first.fold(
                     onSuccess = { text ->
                         _content.value = text
@@ -93,7 +96,6 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
                         _fontSizeSp.value = loaded.second
                     },
                     onFailure = {
-                        loadFailed = true
                         _content.value = ""
                         savedContent = null
                         _saveState.value = null

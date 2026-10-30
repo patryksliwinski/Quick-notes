@@ -11,6 +11,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -248,10 +249,15 @@ class NoteRepository(
         widgetRefreshJob?.cancel()
         widgetRefreshJob = widgetRefreshScope.launch {
             delay(WIDGET_REFRESH_COALESCE_MS)
+            if (!isActive) return@launch
             val intent = Intent(RecentNotesWidgetProvider.ACTION_REFRESH).apply {
                 setPackage(context.packageName)
             }
-            context.sendBroadcast(intent)
+            try {
+                context.sendBroadcast(intent)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+            }
         }
     }
 

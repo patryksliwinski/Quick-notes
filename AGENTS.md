@@ -39,10 +39,10 @@ Requires JDK 17, Android SDK with `platforms;android-35` and `build-tools;35.0.0
 
 - Every PR must keep `testDebugUnitTest` green and add tests for new pure logic (naming, title/snippet derivation, filtering).
 - **Coverage is enforced**: Kover verifies >= 80% line **and** branch coverage of unit-testable code on every PR (`./gradlew :app:koverVerifyDebug`, also a CI gate). HTML/XML reports land in `app/build/reports/kover/`.
-- Device-only code is excluded from the gate in `app/build.gradle.kts` (Compose screens, `MainActivity`, widget/tile receivers, `SafNoteStore`) — they need an emulator, and CI runs no emulator/instrumented tests today (no `app/src/androidTest` source set, no emulator job in `pr.yml`), so that coverage does not exist yet; verify such code manually.
-- Storage logic (`NoteStore`) is covered via unit tests where possible (`InternalNoteStore` runs on plain JVM; SAF paths need a device/emulator — mark them `@Ignore` if no emulator is available, but state that in the PR).
-- No UI snapshot tests yet; if you add Compose UI tests, they must run under `testDebugUnitTest` (Robolectric). If an `androidTest` source set with an emulator job in `pr.yml` is added later, instrumented tests would run via `connectedDebugAndroidTest` in CI.
-
+- Device-only code is excluded from the gate in `app/build.gradle.kts` (Compose screens, `MainActivity`, widget/tile RemoteViews wiring) — but the gate must never exclude the buggy surface: pull SAF logic in via a registered fake `ContentProvider`, and extract entry-point/wiring decisions (widget/tile → `ACTION_NEW_NOTE`, `onNewIntent`, share) into pure functions so they are unit-testable (issue #60). New device-only code goes on the exclusion list with a reason plus a pure testable core.
+- Storage fakes must model **both** failure modes: throwing *and* silent-empty (`null` cursor → empty list, `null` stream → `""`); assert the repository surfaces `NoteError` instead of empty results. Durability paths (journal `record`) must be asserted synchronous (`commit()`, not `apply()`).
+- Storage logic (`NoteStore`) is covered via unit tests where possible (`InternalNoteStore` runs on plain JVM; SAF paths are unit-tested through a fake `ContentProvider` under Robolectric — `SafNoteStoreTest`). CI runs no emulator/instrumented tests today (no `app/src/androidTest` source set, no emulator job in `pr.yml`), so on-device SAF flows are verified manually; if an `androidTest` source set with an emulator job is added later, they run via `connectedDebugAndroidTest` in CI.
+- No UI snapshot tests yet; if you add Compose UI tests, they must run under `testDebugUnitTest` (Robolectric).
 ## Workflow (summary — full version in docs/WORKFLOW.md)
 
 - Work happens on short-lived branches `vibe/<slug>` or `feat/<slug>`; PRs target `main`.

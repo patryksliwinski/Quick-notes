@@ -78,9 +78,9 @@ kover {
                 classes(
                     "com.patryksliwinski.quicknotes.ui.MainActivity*",
                     "com.patryksliwinski.quicknotes.ui.*ScreenKt*",
-                    "com.patryksliwinski.quicknotes.receiver.*",
+                    "com.patryksliwinski.quicknotes.receiver.*Layout*",
+                    "com.patryksliwinski.quicknotes.receiver.*Provider*",
                     "com.patryksliwinski.quicknotes.tile.*",
-                    "com.patryksliwinski.quicknotes.data.SafNoteStore*",
                 )
             }
         }

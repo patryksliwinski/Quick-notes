@@ -318,8 +318,8 @@ class SafNoteStoreTest {
         assertTrue(provider.events.contains("rename:end"))
         assertTrue(provider.events.contains("list"))
         assertTrue(
-            provider.events.indexOf("rename:end") < provider.events.indexOf("list"),
             "list must run after the write swap completes, was: ${provider.events}",
+            provider.events.indexOf("rename:end") < provider.events.indexOf("list"),
         )
     }
 

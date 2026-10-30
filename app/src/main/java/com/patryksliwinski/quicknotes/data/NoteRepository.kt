@@ -64,15 +64,20 @@ class NoteRepository(
         val next = HashMap<HeadKey, HeadFields>(listed.size * 2)
         val enriched = listed.map { meta ->
             val key = HeadKey(meta.uri, meta.lastModified, meta.size)
-            val fields = headCache[key] ?: run {
+            val cached = headCache[key]
+            val fields = if (cached != null) {
+                next[key] = cached
+                cached
+            } else {
                 val head = try {
                     store.readHead(meta.uri)
                 } catch (e: Exception) {
-                    ""
+                    null
                 }
-                deriveHead(meta.name, head)
+                val derived = deriveHead(meta.name, head.orEmpty())
+                if (!head.isNullOrEmpty()) next[key] = derived
+                derived
             }
-            next[key] = fields
             meta.copy(title = fields.title, snippet = fields.snippet)
         }
         headCache.clear()

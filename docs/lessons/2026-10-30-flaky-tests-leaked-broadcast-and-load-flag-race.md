@@ -1,0 +1,12 @@
+# 2026-10-30 — Flaky tests: leaked widget broadcast and editor load-failure race
+
+## Context
+Flaky-test hunt on `testDebugUnitTest`: 16 full `--rerun-tasks` runs produced 3 failures in two unrelated test classes. Reproduce first, fix the demonstrated cause.
+
+## Lesson
+- **Fire-and-forget work from repository code outlives the Robolectric sandbox.** `NoteRepository.scheduleWidgetRefresh` launched a 2s-delayed `sendBroadcast` on an unmanaged `CoroutineScope(SupervisorJob() + Dispatchers.IO)`. In unit tests the broadcast fired after the sandbox teardown, threw `NullPointerException` inside `ShadowContextImpl.sendBroadcast`, and `runTest` attributed it to whatever test ran next as `UncaughtExceptionsBeforeTest` — so a `SafNoteStoreTest` test flaked even though it never touches the repository. **Fix:** guard the send with `isActive` and wrap it so a dead context can't throw into a foreign test. General rule: anything a repository starts must be cancellable/contained, or it will leak into the next test.
+- **Cross-thread flags written after a guard check race with the guard's other side.** `EditorViewModel.open()` checked `generation != openGeneration || contentDirty` and only then set `loadFailed = true` inside the `Result.fold` — a keystroke in between left `loadFailed == false`, so the autosave-suppression path was skipped and `failed note load does not autosave empty content over the real file` flaked with `expected:<[typed after failure]> but was:<[]>`. **Fix:** derive the flag from the loaded `Result` before any branching (`loadFailed = loaded.first.isFailure`) and mark flags read/written across threads `@Volatile`; the test waits on the flag deterministically instead of racing the async load.
+- **Negative timing assertions are flake bait.** `assertTrue(readIfExists(meta) != "slow save")` after a fixed 500ms window fails on a fast machine only if the 1000ms debounce hasn't elapsed — invert to a positive lower bound (`elapsed >= debounce - slack`) once the save lands. Similarly, `waitFor { scans >= 1 }; Thread.sleep(200); assertEquals(1, scans)` races the coalesced scan — wait for the scan's *effect* (repository flow non-empty), then grace window, then assert.
+
+## Rule now
+Repository-started background work is contained (cancellable + exception-safe). Editor load state is decided from the loaded value before acting on it. Timing tests assert positive lower bounds on elapsed time and wait for observable effects before negative assertions.

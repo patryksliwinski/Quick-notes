@@ -142,6 +142,20 @@ class InternalNoteStoreTest {
     }
 
     @Test
+    fun `restoreNote derives title and snippet from restored content`() = runTest {
+        val meta = store.restoreNote("restored.md", "# Restored\nbody line")
+        assertEquals("Restored", meta.title)
+        assertEquals("body line", meta.snippet)
+    }
+
+    @Test
+    fun `restoreNote of a one-line note derives empty snippet`() = runTest {
+        val meta = store.restoreNote("restored.md", "# Only")
+        assertEquals("Only", meta.title)
+        assertEquals("", meta.snippet)
+    }
+
+    @Test
     fun `read and write note roundtrip`() = runTest {
         val meta = store.createNote()
         store.writeNote(meta.uri, "content v1")

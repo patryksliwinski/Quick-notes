@@ -90,8 +90,13 @@ class NoteNamingTest {
     }
 
     @Test
-    fun `snippet falls back to title line when there is no body`() {
-        assertEquals("Shopping", deriveSnippet("x.md", "# Shopping"))
+    fun `snippet is empty when there is no body line`() {
+        assertEquals("", deriveSnippet("x.md", "# Shopping"))
+    }
+
+    @Test
+    fun `snippet is empty for a one-line note without heading`() {
+        assertEquals("", deriveSnippet("x.md", "Shopping"))
     }
 
     @Test
@@ -111,7 +116,8 @@ class NoteNamingTest {
     }
 
     @Test
-    fun `snippet prefers body line even when it equals raw title line`() {
-        assertEquals("Shopping", deriveSnippet("x.md", "Shopping\nShopping"))
+    fun `snippet is empty when every body line equals the title`() {
+        assertEquals("", deriveSnippet("x.md", "Shopping\nShopping"))
+        assertEquals("", deriveSnippet("x.md", "# Shopping\nShopping"))
     }
 }

@@ -64,7 +64,7 @@ fun deriveTitle(name: String, head: String): String {
 fun deriveSnippet(name: String, head: String): String {
     val lines = head.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList()
     val titleLine = lines.firstOrNull()?.trimStart('#')?.trim()
-    val body = lines.drop(1).firstOrNull { it != titleLine } ?: titleLine ?: ""
+    val body = lines.drop(1).firstOrNull { it != titleLine } ?: ""
     return body.take(80)
 }
 
@@ -132,12 +132,13 @@ class InternalNoteStore(private val dir: File) : NoteStore {
     override suspend fun restoreNote(name: String, content: String): NoteMeta {
         val file = File(dir, name)
         file.writeText(content)
+        val head = content.take(HEAD_BYTES)
         return NoteMeta(
             uri = file.toURI().toString(),
             name = file.name,
             lastModified = file.lastModified(),
-            title = file.name.removeSuffix(".md"),
-            snippet = "",
+            title = deriveTitle(file.name, head),
+            snippet = deriveSnippet(file.name, head),
             size = file.length(),
         )
     }

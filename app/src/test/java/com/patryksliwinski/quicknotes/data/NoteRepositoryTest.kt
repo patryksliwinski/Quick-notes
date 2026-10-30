@@ -215,7 +215,8 @@ class NoteRepositoryTest {
         repository.restoreNote(meta, "# New\nnew")
         val notes = repository.notes.first()
         assertEquals(1, notes.size)
-        assertEquals(meta.name.removeSuffix(".md"), notes[0].title)
+        assertEquals("New", notes[0].title)
+        assertEquals("new", notes[0].snippet)
         assertEquals("# New\nnew", repository.readNote(notes[0].uri))
     }
 
@@ -338,6 +339,51 @@ class NoteRepositoryTest {
         assertEquals(1, notes.size)
         assertEquals(meta.name.removeSuffix(".md"), notes[0].title)
         assertEquals("", notes[0].snippet)
+    }
+
+    @Test
+    fun `failed head read is not cached and later refresh recovers the title`() = runTest {
+        val notesDir = context.filesDir.resolve("notes")
+        val delegate = InternalNoteStore(notesDir)
+        var fail = true
+        val flaky = object : NoteStore by delegate {
+            override suspend fun readHead(uri: String, maxBytes: Int): String {
+                if (fail) throw java.io.IOException("SD card unavailable")
+                return delegate.readHead(uri, maxBytes)
+            }
+        }
+        val repo = NoteRepository(context) { flaky to false }
+        val meta = repo.createNote("# Recovered\nbody")!!
+        repo.refresh()
+        assertEquals(meta.name.removeSuffix(".md"), repo.notes.first()[0].title)
+        assertEquals("", repo.notes.first()[0].snippet)
+        fail = false
+        repo.refresh()
+        val notes = repo.notes.first()
+        assertEquals("Recovered", notes[0].title)
+        assertEquals("body", notes[0].snippet)
+    }
+
+    @Test
+    fun `empty head from store is not cached and later refresh recovers the title`() = runTest {
+        val notesDir = context.filesDir.resolve("notes")
+        val delegate = InternalNoteStore(notesDir)
+        var returnEmpty = true
+        val flaky = object : NoteStore by delegate {
+            override suspend fun readHead(uri: String, maxBytes: Int): String {
+                if (returnEmpty) return ""
+                return delegate.readHead(uri, maxBytes)
+            }
+        }
+        val repo = NoteRepository(context) { flaky to false }
+        val meta = repo.createNote("# Later\nbody")!!
+        repo.refresh()
+        assertEquals(meta.name.removeSuffix(".md"), repo.notes.first()[0].title)
+        returnEmpty = false
+        repo.refresh()
+        val notes = repo.notes.first()
+        assertEquals("Later", notes[0].title)
+        assertEquals("body", notes[0].snippet)
     }
 
     @Test

@@ -90,7 +90,8 @@ class NoteRepository(
         val retained = recentlyMutated()
         val retainedUris = retained.map { it.uri }.toSet()
         val refreshedListed = listed.filter { it.uri !in retainedUris }
-        _notes.value = (retained + refreshedListed).map { placeholderHead(it) }
+        val previous = _notes.value.associateBy { it.uri }
+        _notes.value = (retained + refreshedListed).map { placeholderHead(it, previous[it.uri]) }
         _notes.value = retained + enrichHeads(refreshedListed)
     }
 
@@ -107,12 +108,6 @@ class NoteRepository(
                 content = save.content,
             )
         }
-    }
-
-    private suspend fun publishEnriched(listed: List<NoteMeta>) {
-        val previous = _notes.value.associateBy { it.uri }
-        _notes.value = listed.map { placeholderHead(it, previous[it.uri]) }
-        _notes.value = enrichHeads(listed)
     }
 
     private fun placeholderHead(meta: NoteMeta, prior: NoteMeta? = null): NoteMeta {

@@ -166,16 +166,16 @@ class NoteRepositoryTest {
             }
         }
         repo = NoteRepository(context) { observing to false }
-        repo.createNote("# Edited\nfresh body")
+        val created = repo.createNote("# Edited\nfresh body")!!
         repo.refresh()
         seenPlaceholders.clear()
-        val file = java.io.File(java.net.URI(repo.notes.first().first().uri))
+        val file = java.io.File(java.net.URI(created.uri))
         file.setLastModified(file.lastModified() + 5000L)
         repo.refresh()
         assertTrue(seenPlaceholders.isNotEmpty())
         for (placeholder in seenPlaceholders) {
-            assertEquals("Edited", placeholder.title)
-            assertEquals("fresh body", placeholder.snippet)
+            assertEquals(created.name.removeSuffix(".md"), placeholder.title)
+            assertEquals("# Edited", placeholder.snippet)
             assertEquals("# Edited\nfresh body", placeholder.content)
         }
     }
